@@ -1,0 +1,247 @@
+{
+  "schema_version": "1.1",
+  "type_definitions": [
+    {
+      "type": "user"
+    },
+    {
+      "type": "group",
+      "relations": {
+        "member": {
+          "this": {}
+        }
+      },
+      "metadata": {
+        "relations": {
+          "member": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "group",
+                "relation": "member"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "folder",
+      "relations": {
+        "parent": {
+          "this": {}
+        },
+        "viewer": {
+          "union": {
+            "child": [
+              {
+                "this": {}
+              },
+              {
+                "tupleToUserset": {
+                  "tupleset": {
+                    "relation": "parent"
+                  },
+                  "computedUserset": {
+                    "relation": "viewer"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "parent": {
+            "directly_related_user_types": [
+              {
+                "type": "folder"
+              }
+            ]
+          },
+          "viewer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "group",
+                "relation": "member"
+              },
+              {
+                "type": "user",
+                "wildcard": {}
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "document",
+      "relations": {
+        "parent": {
+          "this": {}
+        },
+        "owner": {
+          "this": {}
+        },
+        "viewer": {
+          "this": {}
+        },
+        "editor": {
+          "this": {}
+        },
+        "restricted": {
+          "this": {}
+        },
+        "blocked": {
+          "this": {}
+        },
+        "conditional": {
+          "this": {}
+        },
+        "both": {
+          "intersection": {
+            "child": [
+              {
+                "computedUserset": {
+                  "relation": "editor"
+                }
+              },
+              {
+                "computedUserset": {
+                  "relation": "restricted"
+                }
+              }
+            ]
+          }
+        },
+        "can_view": {
+          "difference": {
+            "base": {
+              "union": {
+                "child": [
+                  {
+                    "computedUserset": {
+                      "relation": "viewer"
+                    }
+                  },
+                  {
+                    "computedUserset": {
+                      "relation": "owner"
+                    }
+                  },
+                  {
+                    "computedUserset": {
+                      "relation": "both"
+                    }
+                  },
+                  {
+                    "computedUserset": {
+                      "relation": "conditional"
+                    }
+                  },
+                  {
+                    "tupleToUserset": {
+                      "tupleset": {
+                        "relation": "parent"
+                      },
+                      "computedUserset": {
+                        "relation": "viewer"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "subtract": {
+              "computedUserset": {
+                "relation": "blocked"
+              }
+            }
+          }
+        }
+      },
+      "metadata": {
+        "relations": {
+          "parent": {
+            "directly_related_user_types": [
+              {
+                "type": "folder"
+              }
+            ]
+          },
+          "owner": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "editor": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "restricted": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "blocked": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              }
+            ]
+          },
+          "viewer": {
+            "directly_related_user_types": [
+              {
+                "type": "user"
+              },
+              {
+                "type": "group",
+                "relation": "member"
+              },
+              {
+                "type": "user",
+                "wildcard": {}
+              }
+            ]
+          },
+          "conditional": {
+            "directly_related_user_types": [
+              {
+                "type": "user",
+                "condition": "granted"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "conditions": {
+    "granted": {
+      "name": "granted",
+      "expression": "level >= required",
+      "parameters": {
+        "level": {
+          "type_name": "TYPE_NAME_INT"
+        },
+        "required": {
+          "type_name": "TYPE_NAME_INT"
+        }
+      }
+    }
+  }
+}

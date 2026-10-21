@@ -1,0 +1,8 @@
+dist/
+node_modules/
+target/
+.hegel/
+*.db
+*.db-*
+playwright-report/
+test-results/

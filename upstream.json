@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/openfga/openfga",
+  "workspace": "../../../openfga/openfga.git/lts-1",
+  "trackingBranch": "lts-1",
+  "testedCommit": "22c4d5ddf4d5969bee10c24e468a5acfbcf26837",
+  "portabilityPatch": {
+    "module": "github.com/Yiling-J/theine-go",
+    "version": "v0.6.2",
+    "file": "internal/xruntime/xruntime.go",
+    "reason": "cpu.CacheLinePad has size zero on WASM; retain a 64-byte minimum padding"
+  }
+}

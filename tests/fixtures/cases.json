@@ -1,0 +1,470 @@
+[
+  {
+    "name": "deny_empty",
+    "tuples": [],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": false
+  },
+  {
+    "name": "owner",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "owner",
+        "user": "user:alice"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "unrelated_user",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "owner",
+        "user": "user:bob"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": false
+  },
+  {
+    "name": "wildcard",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "viewer",
+        "user": "user:*"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "userset",
+    "tuples": [
+      {
+        "object": "group:1",
+        "relation": "member",
+        "user": "user:alice"
+      },
+      {
+        "object": "document:1",
+        "relation": "viewer",
+        "user": "group:1#member"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "nested_userset",
+    "tuples": [
+      {
+        "object": "group:1",
+        "relation": "member",
+        "user": "user:alice"
+      },
+      {
+        "object": "group:2",
+        "relation": "member",
+        "user": "group:1#member"
+      },
+      {
+        "object": "document:1",
+        "relation": "viewer",
+        "user": "group:2#member"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "cycle_without_proof",
+    "tuples": [
+      {
+        "object": "group:1",
+        "relation": "member",
+        "user": "group:2#member"
+      },
+      {
+        "object": "group:2",
+        "relation": "member",
+        "user": "group:1#member"
+      },
+      {
+        "object": "document:1",
+        "relation": "viewer",
+        "user": "group:1#member"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": false
+  },
+  {
+    "name": "cycle_with_proof",
+    "tuples": [
+      {
+        "object": "group:1",
+        "relation": "member",
+        "user": "group:2#member"
+      },
+      {
+        "object": "group:2",
+        "relation": "member",
+        "user": "group:1#member"
+      },
+      {
+        "object": "group:2",
+        "relation": "member",
+        "user": "user:alice"
+      },
+      {
+        "object": "document:1",
+        "relation": "viewer",
+        "user": "group:1#member"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "tuple_to_userset",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "parent",
+        "user": "folder:1"
+      },
+      {
+        "object": "folder:1",
+        "relation": "viewer",
+        "user": "user:alice"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "recursive_parent",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "parent",
+        "user": "folder:1"
+      },
+      {
+        "object": "folder:1",
+        "relation": "parent",
+        "user": "folder:2"
+      },
+      {
+        "object": "folder:2",
+        "relation": "viewer",
+        "user": "user:alice"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "intersection_yes",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "editor",
+        "user": "user:alice"
+      },
+      {
+        "object": "document:1",
+        "relation": "restricted",
+        "user": "user:alice"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "intersection_no",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "editor",
+        "user": "user:alice"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": false
+  },
+  {
+    "name": "exclusion",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "owner",
+        "user": "user:alice"
+      },
+      {
+        "object": "document:1",
+        "relation": "blocked",
+        "user": "user:alice"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": false
+  },
+  {
+    "name": "contextual_grant",
+    "tuples": [],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      },
+      "contextual_tuples": {
+        "tuple_keys": [
+          {
+            "object": "document:1",
+            "relation": "owner",
+            "user": "user:alice"
+          }
+        ]
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "contextual_exclusion",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "owner",
+        "user": "user:alice"
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      },
+      "contextual_tuples": {
+        "tuple_keys": [
+          {
+            "object": "document:1",
+            "relation": "blocked",
+            "user": "user:alice"
+          }
+        ]
+      }
+    },
+    "allowed": false
+  },
+  {
+    "name": "cel_true",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "conditional",
+        "user": "user:alice",
+        "condition": {
+          "name": "granted",
+          "context": {
+            "required": 3
+          }
+        }
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      },
+      "context": {
+        "level": 4
+      }
+    },
+    "allowed": true
+  },
+  {
+    "name": "cel_false",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "conditional",
+        "user": "user:alice",
+        "condition": {
+          "name": "granted",
+          "context": {
+            "required": 3
+          }
+        }
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      },
+      "context": {
+        "level": 2
+      }
+    },
+    "allowed": false
+  },
+  {
+    "name": "cel_missing_context",
+    "tuples": [
+      {
+        "object": "document:1",
+        "relation": "conditional",
+        "user": "user:alice",
+        "condition": {
+          "name": "granted",
+          "context": {
+            "required": 3
+          }
+        }
+      }
+    ],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      }
+    },
+    "allowed": false,
+    "error": true
+  },
+  {
+    "name": "invalid_relation",
+    "tuples": [],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "missing",
+        "user": "user:alice"
+      }
+    },
+    "allowed": false,
+    "error": true
+  },
+  {
+    "name": "invalid_type",
+    "tuples": [],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "robot:alice"
+      }
+    },
+    "allowed": false,
+    "error": true
+  },
+  {
+    "name": "invalid_contextual_tuple",
+    "tuples": [],
+    "check": {
+      "tuple_key": {
+        "object": "document:1",
+        "relation": "can_view",
+        "user": "user:alice"
+      },
+      "contextual_tuples": {
+        "tuple_keys": [
+          {
+            "object": "document:1",
+            "relation": "parent",
+            "user": "user:alice"
+          }
+        ]
+      }
+    },
+    "allowed": false,
+    "error": true
+  }
+]

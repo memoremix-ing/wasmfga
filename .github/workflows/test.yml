@@ -1,0 +1,39 @@
+name: test
+on: [push, pull_request]
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: track/github.com/memoremix-ing/wasmfga.git/sts-0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: track/github.com/memoremix-ing/wasmfga.git/sts-0
+      - name: Read tested upstream revision
+        id: upstream
+        run: echo "commit=$(python3 -c 'import json; print(json.load(open("upstream.json"))["testedCommit"])')" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: openfga/openfga
+          ref: ${{ steps.upstream.outputs.commit }}
+          path: track/github.com/openfga/openfga.git/lts-1
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache-dependency-path: '**/go.sum'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.92.0'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: track/github.com/memoremix-ing/wasmfga.git/sts-0/sdk/typescript/package-lock.json
+      - name: Build and test Go, Rust, SQLite, libSQL and Turso
+        run: make test-go test-rust test-typescript
+      - name: Install browser
+        run: cd sdk/typescript && npm exec playwright install --with-deps chromium
+      - name: Browser SQLite integration
+        run: make test-browser

@@ -1,0 +1,25 @@
+{
+  "name": "@memoremix/wasmfga",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test test/node.test.mjs",
+    "test:browser": "npm run build:browser && playwright test",
+    "build:browser": "npm run build && esbuild test/browser.mjs --bundle --platform=browser --format=esm --outfile=../../dist/browser.mjs"
+  },
+  "dependencies": {
+    "@bjorn3/browser_wasi_shim": "^0.4.2"
+  },
+  "devDependencies": {
+    "@libsql/client": "^0.17.0",
+    "@playwright/test": "^1.56.0",
+    "@tursodatabase/database": "^0.6.0",
+    "esbuild": "^0.25.0",
+    "sql.js": "^1.14.2",
+    "typescript": "^5.9.3"
+  }
+}
