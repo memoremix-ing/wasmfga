@@ -1,6 +1,10 @@
-.PHONY: build test test-go test-rust test-typescript test-browser typescript-deps fmt build-go build-rust test-engines benchmark benchmark-gate
+.PHONY: build test test-go test-rust test-typescript test-browser typescript-deps fmt build-go build-rust test-engines benchmark benchmark-gate conformance
 
 build: build-go build-rust
+
+# Strict: includes known gaps and intentionally fails for the current Rust guest.
+conformance: build
+	python3 scripts/conformance.py
 
 build-go:
 	mkdir -p dist

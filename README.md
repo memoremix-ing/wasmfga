@@ -89,6 +89,11 @@ CEL compatibility gaps. Six opt-in oracle regressions reproduce these difference
 all pass with the Go guest and fail with the current Rust guest. The Rust evaluator
 must not be treated as authorization-equivalent to OpenFGA on arbitrary inputs.
 
+`make conformance` includes those open gaps and therefore currently fails for Rust.
+It records the tested artifact hashes and JSON test logs under `dist/conformance/`.
+See the [correctness strategy](docs/correctness-strategy.md) for the comparison
+contract and planned exhaustive, generative, mutation and proof checks.
+
 Its compatibility is narrower than the Go engine: CEL macros, collection
 expressions, generic and `any` parameters, and unrecognized model fields are
 rejected. Numeric strings must spell signed 64-bit integers; double strings are
