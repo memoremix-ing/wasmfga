@@ -1,0 +1,4696 @@
+{
+  "measuredAt": "2026-10-21T04:10:25.678Z",
+  "samples": 5,
+  "scale": 1,
+  "labels": {
+    "go": "Go port (native snapshots)",
+    "rust": "Rust port (native snapshots)",
+    "upstream": "Original Go checker (transaction SQL)",
+    "upstream-cached": "Original Go checker (compiled model reused)"
+  },
+  "metadata": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "25.5.0",
+    "cpu": "Apple M2",
+    "logicalCpus": 8,
+    "go": "go version go1.27.1 darwin/arm64",
+    "rust": "rustc 1.92.0 (ded5c06cf 2025-12-08)",
+    "node": "v24.22.0",
+    "jjChange": "rztlrovwspnuptwvsnwnyzoqpszpqnoo",
+    "upstream": {
+      "repository": "https://github.com/openfga/openfga",
+      "workspace": "../../../openfga/openfga.git/lts-1",
+      "trackingBranch": "lts-1",
+      "testedCommit": "22c4d5ddf4d5969bee10c24e468a5acfbcf26837",
+      "portabilityPatch": {
+        "module": "github.com/Yiling-J/theine-go",
+        "version": "v0.6.2",
+        "file": "internal/xruntime/xruntime.go",
+        "reason": "cpu.CacheLinePad has size zero on WASM; retain a 64-byte minimum padding"
+      }
+    },
+    "goBuild": "go build -trimpath -ldflags='-s -w'; default native optimization; no WASM engine",
+    "rustBuild": "cargo build --locked --release; native opt-level=3, thin LTO, codegen-units=1, strip=true, panic=abort",
+    "drivers": {
+      "go": {
+        "driver": "modernc.org/sqlite",
+        "sqliteVersion": "3.53.4",
+        "gomaxprocs": 8
+      },
+      "rust": {
+        "driver": "rusqlite + bundled SQLite",
+        "sqliteVersion": "3.50.2"
+      }
+    }
+  },
+  "methodology": {
+    "sqlite": "Native library calls in an already-open in-memory SQLite transaction. Includes SQL preparation, reads, stored JSON decoding, validation and evaluation. No outer request/response JSON serialization, WASM, IPC, network or transaction begin/commit costs. Native Go uses a typed Request; native Rust uses a serde_json::Value envelope.",
+    "json": "Pre-encoded identical hydrated input bytes passed directly to each native Run function, then response decoding. Includes model/CEL validation, snapshot construction and evaluation. Excludes SQL and input encoding. Matches the scope of the earlier hydrated WASM invocation more closely than the structured native library mode.",
+    "upstream": "Unmodified upstream commands.NewCheckCommand and graph.NewLocalChecker, bound through a new transaction-only RelationshipTupleReader over wasmfga's two-table schema. Accepts a native protobuf CheckRequest pre-decoded outside timing. Reads relevant edges directly; no complete-store hydration. Not the standalone HTTP/gRPC server or stock OpenFGA SQL backend. Same dispatch depth 25 and breadth 1 as the Go snapshot port. No tuple/decision cache.",
+    "cached": "The separate upstream-cached variant prepares the immutable model and resolver once per workload/transaction outside timing; preparation is recorded. The other three SQLite variants reload/validate models per Check. This is an application configuration difference, not an isolated language comparison.",
+    "statistics": "Five fresh processes per engine/mode by default, sequential execution, rotating engine order. Median of process medians and median of process p95 values; raw samples and range of medians retained. Small workloads: 500 warmups/5000 measured checks; 1000 tuples: 100/500; 10000 tuples: 10/50. Counts are multiplied by the recorded scale. Every decision verified outside its timed interval. No GC forcing, CPU pinning or profiler.",
+    "limitations": "Rust remains experimental with known conformance gaps including a contextual-duplicate false allow. All measured workloads pass the native OpenFGA oracle; that does not establish general equivalence. Go snapshot hydration still uses quadratic upstream MemoryBackend.Write; direct upstream SQL avoids it. Go and Rust use different SQLite bindings/builds. One in-flight Check at a time; Go may dispatch graph branches using goroutines. One machine, no remote or durable-commit costs. Earlier WASM results were collected in a separate run; cross-run ratios are descriptive, not a simultaneous controlled comparison."
+  },
+  "gate": {
+    "completedAt": "2026-10-21T03:56:27.228Z",
+    "binaries": {
+      "go": {
+        "path": "/Users/artinte/git/modial/basinsync.projj/track/github.com/memoremix-ing/wasmfga.git/sts-0/dist/native/go-bench",
+        "sha256": "cff1552a447e563ca032526f6eacad88f93851d91c74d73c1a80517e6c31e429"
+      },
+      "rust": {
+        "path": "/Users/artinte/git/modial/basinsync.projj/track/github.com/memoremix-ing/wasmfga.git/sts-0/dist/native/rust-bench",
+        "sha256": "95bfd90b6ca3b2b5f76c0ea0da1e312a0cb93ed974e3e836d58bdc331808c21b"
+      }
+    },
+    "fixturePath": "/Users/artinte/git/modial/basinsync.projj/track/github.com/memoremix-ing/wasmfga.git/sts-0/dist/native/fixtures.json",
+    "fixtureSha256": "c3c2c6a141784d1fab50dfcaddb42baed11c82214f355dca115464b1f3e2727e",
+    "checks": [
+      {
+        "engine": "go",
+        "mode": "json"
+      },
+      {
+        "engine": "rust",
+        "mode": "json"
+      },
+      {
+        "engine": "go",
+        "mode": "sqlite"
+      },
+      {
+        "engine": "rust",
+        "mode": "sqlite"
+      },
+      {
+        "engine": "upstream",
+        "mode": "sqlite"
+      },
+      {
+        "engine": "upstream-cached",
+        "mode": "sqlite"
+      }
+    ],
+    "oracle": {
+      "oracle": "unmodified native OpenFGA Server.Check",
+      "passed": true,
+      "workloads": 10
+    },
+    "scope": "Ten shared valid Check workloads only. This is not unrestricted conformance; the Rust port retains the known CEL gaps and contextual-duplicate false allow documented in docs/conformance-audit.md."
+  },
+  "rows": [
+    {
+      "mode": "json",
+      "workload": "direct-grant",
+      "tuples": 1,
+      "engines": {
+        "go": {
+          "medianUs": 256.125,
+          "p95Us": 629,
+          "minSampleMedianUs": 247.791,
+          "maxSampleMedianUs": 275.667,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 1574.125,
+          "prepareUs": 0.084
+        },
+        "rust": {
+          "medianUs": 27.542,
+          "p95Us": 29.167,
+          "minSampleMedianUs": 26.25,
+          "maxSampleMedianUs": 28,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 2000.291,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "empty-deny",
+      "tuples": 0,
+      "engines": {
+        "go": {
+          "medianUs": 259.667,
+          "p95Us": 516.792,
+          "minSampleMedianUs": 252.042,
+          "maxSampleMedianUs": 267,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 274.542,
+          "prepareUs": 0.041
+        },
+        "rust": {
+          "medianUs": 26.958,
+          "p95Us": 28.458000000000002,
+          "minSampleMedianUs": 25.583,
+          "maxSampleMedianUs": 27.166,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 33.083,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "userset-chain-12",
+      "tuples": 13,
+      "engines": {
+        "go": {
+          "medianUs": 430.083,
+          "p95Us": 769.167,
+          "minSampleMedianUs": 414.375,
+          "maxSampleMedianUs": 441.209,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 473.584,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 43.791999999999994,
+          "p95Us": 46.75,
+          "minSampleMedianUs": 42.459,
+          "maxSampleMedianUs": 45.083999999999996,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 55.416,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "parent-chain-12",
+      "tuples": 13,
+      "engines": {
+        "go": {
+          "medianUs": 873.958,
+          "p95Us": 1413.458,
+          "minSampleMedianUs": 856.208,
+          "maxSampleMedianUs": 889,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 953.083,
+          "prepareUs": 0
+        },
+        "rust": {
+          "medianUs": 44.625,
+          "p95Us": 47.5,
+          "minSampleMedianUs": 43.25,
+          "maxSampleMedianUs": 47.75,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 51.333,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "intersection",
+      "tuples": 2,
+      "engines": {
+        "go": {
+          "medianUs": 253.167,
+          "p95Us": 448.667,
+          "minSampleMedianUs": 251.5,
+          "maxSampleMedianUs": 262.75,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 275.25,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 28.208000000000002,
+          "p95Us": 29.875,
+          "minSampleMedianUs": 27.291,
+          "maxSampleMedianUs": 29.125,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 32.459,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "exclusion",
+      "tuples": 2,
+      "engines": {
+        "go": {
+          "medianUs": 163.25,
+          "p95Us": 312.334,
+          "minSampleMedianUs": 161.958,
+          "maxSampleMedianUs": 170.959,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 198.458,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 27.041,
+          "p95Us": 28.375,
+          "minSampleMedianUs": 26.083000000000002,
+          "maxSampleMedianUs": 27.915999999999997,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 30.540999999999997,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "cel-int",
+      "tuples": 1,
+      "engines": {
+        "go": {
+          "medianUs": 260.291,
+          "p95Us": 446.375,
+          "minSampleMedianUs": 254.458,
+          "maxSampleMedianUs": 276.459,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 327.625,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 50.334,
+          "p95Us": 55.167,
+          "minSampleMedianUs": 49.083,
+          "maxSampleMedianUs": 52.375,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 424.08399999999995,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "snapshot-100",
+      "tuples": 100,
+      "engines": {
+        "go": {
+          "medianUs": 446.375,
+          "p95Us": 840.666,
+          "minSampleMedianUs": 428.75,
+          "maxSampleMedianUs": 456.709,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 449.166,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 102.083,
+          "p95Us": 109.875,
+          "minSampleMedianUs": 99.042,
+          "maxSampleMedianUs": 113.291,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 123.542,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "snapshot-1000",
+      "tuples": 1000,
+      "engines": {
+        "go": {
+          "medianUs": 6406.125,
+          "p95Us": 7364.875,
+          "minSampleMedianUs": 6090.083,
+          "maxSampleMedianUs": 6525.125,
+          "iterationsPerSample": 500,
+          "firstCheckUs": 6351.334,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 887.4580000000001,
+          "p95Us": 964.917,
+          "minSampleMedianUs": 852.4169999999999,
+          "maxSampleMedianUs": 949.958,
+          "iterationsPerSample": 500,
+          "firstCheckUs": 1002.5419999999999,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "json",
+      "workload": "snapshot-10000",
+      "tuples": 10000,
+      "engines": {
+        "go": {
+          "medianUs": 478055.708,
+          "p95Us": 558641.708,
+          "minSampleMedianUs": 451913.084,
+          "maxSampleMedianUs": 485091.042,
+          "iterationsPerSample": 50,
+          "firstCheckUs": 476841.375,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 9606.125,
+          "p95Us": 10345.333,
+          "minSampleMedianUs": 8991.542,
+          "maxSampleMedianUs": 9771.125,
+          "iterationsPerSample": 50,
+          "firstCheckUs": 10536.375,
+          "prepareUs": 0
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "direct-grant",
+      "tuples": 1,
+      "engines": {
+        "go": {
+          "medianUs": 261.5,
+          "p95Us": 540.167,
+          "minSampleMedianUs": 255.583,
+          "maxSampleMedianUs": 270,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 1533.333,
+          "prepareUs": 0.166
+        },
+        "rust": {
+          "medianUs": 29.875,
+          "p95Us": 31.958000000000002,
+          "minSampleMedianUs": 28.416999999999998,
+          "maxSampleMedianUs": 31.167,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 2074.041,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 380.375,
+          "p95Us": 637.875,
+          "minSampleMedianUs": 368.042,
+          "maxSampleMedianUs": 396.708,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 1627.375,
+          "prepareUs": 0.083
+        },
+        "upstream-cached": {
+          "medianUs": 218.167,
+          "p95Us": 300.917,
+          "minSampleMedianUs": 214.416,
+          "maxSampleMedianUs": 219.875,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 848.875,
+          "prepareUs": 887.458
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "empty-deny",
+      "tuples": 0,
+      "engines": {
+        "go": {
+          "medianUs": 267.667,
+          "p95Us": 447.375,
+          "minSampleMedianUs": 259.167,
+          "maxSampleMedianUs": 275.709,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 262.083,
+          "prepareUs": 0.041
+        },
+        "rust": {
+          "medianUs": 29.541,
+          "p95Us": 31.5,
+          "minSampleMedianUs": 27.792,
+          "maxSampleMedianUs": 30.416,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 35.25,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 398.459,
+          "p95Us": 645.083,
+          "minSampleMedianUs": 372.666,
+          "maxSampleMedianUs": 416.416,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 418,
+          "prepareUs": 0.042
+        },
+        "upstream-cached": {
+          "medianUs": 226.875,
+          "p95Us": 324.583,
+          "minSampleMedianUs": 225.042,
+          "maxSampleMedianUs": 232.334,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 239.417,
+          "prepareUs": 281.292
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "userset-chain-12",
+      "tuples": 13,
+      "engines": {
+        "go": {
+          "medianUs": 427.125,
+          "p95Us": 754.042,
+          "minSampleMedianUs": 419.834,
+          "maxSampleMedianUs": 460.333,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 499.416,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 47.166999999999994,
+          "p95Us": 52.583999999999996,
+          "minSampleMedianUs": 44.417,
+          "maxSampleMedianUs": 48.708,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 65.083,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 763.042,
+          "p95Us": 1133.5,
+          "minSampleMedianUs": 713.042,
+          "maxSampleMedianUs": 782.75,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 820,
+          "prepareUs": 0.041
+        },
+        "upstream-cached": {
+          "medianUs": 546.958,
+          "p95Us": 842.917,
+          "minSampleMedianUs": 535.917,
+          "maxSampleMedianUs": 623.541,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 667.834,
+          "prepareUs": 274.791
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "parent-chain-12",
+      "tuples": 13,
+      "engines": {
+        "go": {
+          "medianUs": 891.083,
+          "p95Us": 1533.875,
+          "minSampleMedianUs": 856.708,
+          "maxSampleMedianUs": 939.25,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 944.375,
+          "prepareUs": 0.041
+        },
+        "rust": {
+          "medianUs": 46.792,
+          "p95Us": 53.417,
+          "minSampleMedianUs": 46.583,
+          "maxSampleMedianUs": 50,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 60.333,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 1660.292,
+          "p95Us": 2334.875,
+          "minSampleMedianUs": 1606.167,
+          "maxSampleMedianUs": 1710.667,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 1633.125,
+          "prepareUs": 0.041
+        },
+        "upstream-cached": {
+          "medianUs": 1442.792,
+          "p95Us": 2044.042,
+          "minSampleMedianUs": 1413.75,
+          "maxSampleMedianUs": 1580.916,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 1440.417,
+          "prepareUs": 271.833
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "intersection",
+      "tuples": 2,
+      "engines": {
+        "go": {
+          "medianUs": 273.667,
+          "p95Us": 531.5,
+          "minSampleMedianUs": 263.708,
+          "maxSampleMedianUs": 277.25,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 313.292,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 30.333,
+          "p95Us": 35.125,
+          "minSampleMedianUs": 30.292,
+          "maxSampleMedianUs": 32.583000000000006,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 37.542,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 401.667,
+          "p95Us": 572.708,
+          "minSampleMedianUs": 383.916,
+          "maxSampleMedianUs": 415,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 428.75,
+          "prepareUs": 0
+        },
+        "upstream-cached": {
+          "medianUs": 236,
+          "p95Us": 293.125,
+          "minSampleMedianUs": 228.208,
+          "maxSampleMedianUs": 293.5,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 250.208,
+          "prepareUs": 259.209
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "exclusion",
+      "tuples": 2,
+      "engines": {
+        "go": {
+          "medianUs": 175.583,
+          "p95Us": 355.625,
+          "minSampleMedianUs": 167.5,
+          "maxSampleMedianUs": 178.459,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 192.709,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 29.375,
+          "p95Us": 30.834000000000003,
+          "minSampleMedianUs": 29,
+          "maxSampleMedianUs": 31.5,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 33.625,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 196.875,
+          "p95Us": 350.917,
+          "minSampleMedianUs": 191.333,
+          "maxSampleMedianUs": 199.875,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 199.958,
+          "prepareUs": 0.042
+        },
+        "upstream-cached": {
+          "medianUs": 45.792,
+          "p95Us": 71.958,
+          "minSampleMedianUs": 44.833,
+          "maxSampleMedianUs": 50.416,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 53.375,
+          "prepareUs": 263.791
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "cel-int",
+      "tuples": 1,
+      "engines": {
+        "go": {
+          "medianUs": 277.625,
+          "p95Us": 513.292,
+          "minSampleMedianUs": 272.791,
+          "maxSampleMedianUs": 285.75,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 340.75,
+          "prepareUs": 0.042
+        },
+        "rust": {
+          "medianUs": 52.75,
+          "p95Us": 60.667,
+          "minSampleMedianUs": 52.417,
+          "maxSampleMedianUs": 56.166,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 430.709,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 387.958,
+          "p95Us": 569.416,
+          "minSampleMedianUs": 374.834,
+          "maxSampleMedianUs": 402.416,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 490.042,
+          "prepareUs": 0.042
+        },
+        "upstream-cached": {
+          "medianUs": 226.875,
+          "p95Us": 306.708,
+          "minSampleMedianUs": 222.25,
+          "maxSampleMedianUs": 251.958,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 288.375,
+          "prepareUs": 262.542
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "snapshot-100",
+      "tuples": 100,
+      "engines": {
+        "go": {
+          "medianUs": 452.5,
+          "p95Us": 780.875,
+          "minSampleMedianUs": 451.167,
+          "maxSampleMedianUs": 460.917,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 505.333,
+          "prepareUs": 0.041
+        },
+        "rust": {
+          "medianUs": 105.125,
+          "p95Us": 118.417,
+          "minSampleMedianUs": 98.167,
+          "maxSampleMedianUs": 105.709,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 123.04199999999999,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 384.125,
+          "p95Us": 698.708,
+          "minSampleMedianUs": 376.666,
+          "maxSampleMedianUs": 471.708,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 397.083,
+          "prepareUs": 0.041
+        },
+        "upstream-cached": {
+          "medianUs": 221.75,
+          "p95Us": 361.833,
+          "minSampleMedianUs": 213,
+          "maxSampleMedianUs": 250.792,
+          "iterationsPerSample": 5000,
+          "firstCheckUs": 262.042,
+          "prepareUs": 252.084
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "snapshot-1000",
+      "tuples": 1000,
+      "engines": {
+        "go": {
+          "medianUs": 6437.541,
+          "p95Us": 7449.958,
+          "minSampleMedianUs": 5866.584,
+          "maxSampleMedianUs": 6476.625,
+          "iterationsPerSample": 500,
+          "firstCheckUs": 6456.917,
+          "prepareUs": 0.041
+        },
+        "rust": {
+          "medianUs": 893.625,
+          "p95Us": 1148.375,
+          "minSampleMedianUs": 857.625,
+          "maxSampleMedianUs": 914.291,
+          "iterationsPerSample": 500,
+          "firstCheckUs": 997.7499999999999,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 385.125,
+          "p95Us": 635.375,
+          "minSampleMedianUs": 372.917,
+          "maxSampleMedianUs": 423.542,
+          "iterationsPerSample": 500,
+          "firstCheckUs": 501.833,
+          "prepareUs": 0.041
+        },
+        "upstream-cached": {
+          "medianUs": 226.75,
+          "p95Us": 332.542,
+          "minSampleMedianUs": 213.459,
+          "maxSampleMedianUs": 254.958,
+          "iterationsPerSample": 500,
+          "firstCheckUs": 269.833,
+          "prepareUs": 275
+        }
+      }
+    },
+    {
+      "mode": "sqlite",
+      "workload": "snapshot-10000",
+      "tuples": 10000,
+      "engines": {
+        "go": {
+          "medianUs": 479269.958,
+          "p95Us": 585778.125,
+          "minSampleMedianUs": 464365.834,
+          "maxSampleMedianUs": 492101.208,
+          "iterationsPerSample": 50,
+          "firstCheckUs": 485510.417,
+          "prepareUs": 0.125
+        },
+        "rust": {
+          "medianUs": 9490.25,
+          "p95Us": 10528.208,
+          "minSampleMedianUs": 8694.083,
+          "maxSampleMedianUs": 9655.917,
+          "iterationsPerSample": 50,
+          "firstCheckUs": 10991.792,
+          "prepareUs": 0
+        },
+        "upstream": {
+          "medianUs": 436.667,
+          "p95Us": 961.75,
+          "minSampleMedianUs": 365.292,
+          "maxSampleMedianUs": 484.833,
+          "iterationsPerSample": 50,
+          "firstCheckUs": 764.292,
+          "prepareUs": 0.167
+        },
+        "upstream-cached": {
+          "medianUs": 238.25,
+          "p95Us": 278.625,
+          "minSampleMedianUs": 216.709,
+          "maxSampleMedianUs": 256.5,
+          "iterationsPerSample": 50,
+          "firstCheckUs": 425.958,
+          "prepareUs": 333.167
+        }
+      }
+    }
+  ],
+  "raw": [
+    {
+      "sample": 0,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1241.708,
+          "iterations": 5000,
+          "meanUs": 302.47788500000047,
+          "medianUs": 259.209,
+          "p95Us": 523.208,
+          "prepareUs": 0.083,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 306.417,
+          "iterations": 5000,
+          "meanUs": 349.30687379999995,
+          "medianUs": 267,
+          "p95Us": 603,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 495.25,
+          "iterations": 5000,
+          "meanUs": 455.0728666000005,
+          "medianUs": 434.959,
+          "p95Us": 694.417,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 824.208,
+          "iterations": 5000,
+          "meanUs": 943.5719210000016,
+          "medianUs": 889,
+          "p95Us": 1387.75,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 275.25,
+          "iterations": 5000,
+          "meanUs": 281.2938732000005,
+          "medianUs": 253.042,
+          "p95Us": 475.375,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 216.208,
+          "iterations": 5000,
+          "meanUs": 179.31250139999977,
+          "medianUs": 161.958,
+          "p95Us": 308.5,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 327.625,
+          "iterations": 5000,
+          "meanUs": 280.7610622000002,
+          "medianUs": 260.291,
+          "p95Us": 446.208,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 435.958,
+          "iterations": 5000,
+          "meanUs": 486.8252814000011,
+          "medianUs": 434.667,
+          "p95Us": 737.875,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 5867.667,
+          "iterations": 500,
+          "meanUs": 6346.826748,
+          "medianUs": 6194.334,
+          "p95Us": 7165.958,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 458238.75,
+          "iterations": 50,
+          "meanUs": 457596.2349800001,
+          "medianUs": 451913.084,
+          "p95Us": 488826.792,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 0,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 509.958,
+          "iterations": 5000,
+          "meanUs": 29.16210040000005,
+          "medianUs": 27.542,
+          "p95Us": 30.709,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 39.75,
+          "iterations": 5000,
+          "meanUs": 28.955826600000034,
+          "medianUs": 26.958,
+          "p95Us": 29.833000000000002,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 55.416,
+          "iterations": 5000,
+          "meanUs": 44.722739800000056,
+          "medianUs": 43.791999999999994,
+          "p95Us": 46.458,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 52.834,
+          "iterations": 5000,
+          "meanUs": 45.58930579999995,
+          "medianUs": 44.75,
+          "p95Us": 47.125,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 32.459,
+          "iterations": 5000,
+          "meanUs": 28.64102720000011,
+          "medianUs": 28.208000000000002,
+          "p95Us": 29.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 30.540999999999997,
+          "iterations": 5000,
+          "meanUs": 27.56359439999984,
+          "medianUs": 27.041,
+          "p95Us": 28.375,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 98.75,
+          "iterations": 5000,
+          "meanUs": 51.23196199999982,
+          "medianUs": 50.334,
+          "p95Us": 55.167,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 124.54100000000001,
+          "iterations": 5000,
+          "meanUs": 103.50733499999987,
+          "medianUs": 102.083,
+          "p95Us": 109.834,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 1002.5419999999999,
+          "iterations": 500,
+          "meanUs": 899.8204259999999,
+          "medianUs": 887.4580000000001,
+          "p95Us": 933.542,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 10536.375,
+          "iterations": 50,
+          "meanUs": 9739.790800000002,
+          "medianUs": 9589.25,
+          "p95Us": 10677,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 0,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1618.583,
+          "iterations": 5000,
+          "meanUs": 307.26293600000014,
+          "medianUs": 255.583,
+          "p95Us": 499.583,
+          "prepareUs": 0.167,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 259.625,
+          "iterations": 5000,
+          "meanUs": 288.56984339999997,
+          "medianUs": 266.666,
+          "p95Us": 446,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 499,
+          "iterations": 5000,
+          "meanUs": 474.63710099999986,
+          "medianUs": 438.583,
+          "p95Us": 754.042,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 961.125,
+          "iterations": 5000,
+          "meanUs": 903.5513759999998,
+          "medianUs": 856.708,
+          "p95Us": 1472.5,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 913.166,
+          "iterations": 5000,
+          "meanUs": 288.41983899999974,
+          "medianUs": 263.708,
+          "p95Us": 465,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 192.709,
+          "iterations": 5000,
+          "meanUs": 187.86759540000003,
+          "medianUs": 167.5,
+          "p95Us": 330.333,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 340.75,
+          "iterations": 5000,
+          "meanUs": 304.3682400000007,
+          "medianUs": 278.292,
+          "p95Us": 480.667,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 458.959,
+          "iterations": 5000,
+          "meanUs": 504.6093296000006,
+          "medianUs": 452.5,
+          "p95Us": 756.667,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6117.875,
+          "iterations": 500,
+          "meanUs": 6447.759832,
+          "medianUs": 6261.958,
+          "p95Us": 7318.833,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 456987.666,
+          "iterations": 50,
+          "meanUs": 472047.88169999997,
+          "medianUs": 464365.834,
+          "p95Us": 546787.709,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 0,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 536,
+          "iterations": 5000,
+          "meanUs": 30.494427599999966,
+          "medianUs": 29.083,
+          "p95Us": 32.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 35.25,
+          "iterations": 5000,
+          "meanUs": 29.816873799999954,
+          "medianUs": 28.5,
+          "p95Us": 31.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 63.458,
+          "iterations": 5000,
+          "meanUs": 47.170907199999945,
+          "medianUs": 45.333,
+          "p95Us": 52.583999999999996,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 64.75,
+          "iterations": 5000,
+          "meanUs": 48.75264020000006,
+          "medianUs": 46.583,
+          "p95Us": 55.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 35.958,
+          "iterations": 5000,
+          "meanUs": 31.685391999999993,
+          "medianUs": 30.292,
+          "p95Us": 36.291000000000004,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 33.708000000000006,
+          "iterations": 5000,
+          "meanUs": 29.9202912,
+          "medianUs": 29,
+          "p95Us": 30.834000000000003,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 105.917,
+          "iterations": 5000,
+          "meanUs": 54.648513,
+          "medianUs": 52.667,
+          "p95Us": 59.708,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 123.04199999999999,
+          "iterations": 5000,
+          "meanUs": 117.05478300000075,
+          "medianUs": 105.333,
+          "p95Us": 192.042,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 997.7499999999999,
+          "iterations": 500,
+          "meanUs": 907.7170119999989,
+          "medianUs": 882.2090000000001,
+          "p95Us": 1093.9579999999999,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 11066.5,
+          "iterations": 50,
+          "meanUs": 9589.989879999997,
+          "medianUs": 9490.25,
+          "p95Us": 10605.833,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 0,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1921.125,
+          "iterations": 5000,
+          "meanUs": 427.24786479999926,
+          "medianUs": 380.375,
+          "p95Us": 631.459,
+          "prepareUs": 0.083,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 397.833,
+          "iterations": 5000,
+          "meanUs": 426.29048260000087,
+          "medianUs": 399.25,
+          "p95Us": 645.083,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 798.708,
+          "iterations": 5000,
+          "meanUs": 804.5665173999993,
+          "medianUs": 772.208,
+          "p95Us": 1094.75,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1582.792,
+          "iterations": 5000,
+          "meanUs": 1765.2817924000005,
+          "medianUs": 1710.667,
+          "p95Us": 2334.875,
+          "prepareUs": 0.084,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 392.5,
+          "iterations": 5000,
+          "meanUs": 427.07620720000034,
+          "medianUs": 403.708,
+          "p95Us": 572.708,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 199.958,
+          "iterations": 5000,
+          "meanUs": 238.4603143999998,
+          "medianUs": 199.875,
+          "p95Us": 398.917,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 490.042,
+          "iterations": 5000,
+          "meanUs": 415.47659680000004,
+          "medianUs": 390.834,
+          "p95Us": 569.834,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 364.875,
+          "iterations": 5000,
+          "meanUs": 416.9868227999993,
+          "medianUs": 384.125,
+          "p95Us": 643.083,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 408.916,
+          "iterations": 500,
+          "meanUs": 418.44531599999965,
+          "medianUs": 385.125,
+          "p95Us": 629.292,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 1219.292,
+          "iterations": 50,
+          "meanUs": 411.12172000000004,
+          "medianUs": 370.792,
+          "p95Us": 649.75,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 0,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream-cached",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 866.333,
+          "iterations": 5000,
+          "meanUs": 231.6655839999997,
+          "medianUs": 218.167,
+          "p95Us": 292.334,
+          "prepareUs": 887.458,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 231.791,
+          "iterations": 5000,
+          "meanUs": 256.69703060000074,
+          "medianUs": 227.834,
+          "p95Us": 376.5,
+          "prepareUs": 281.292,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 667.834,
+          "iterations": 5000,
+          "meanUs": 747.5762547999993,
+          "medianUs": 571.458,
+          "p95Us": 1352.917,
+          "prepareUs": 295.792,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1440.417,
+          "iterations": 5000,
+          "meanUs": 1519.4431597999983,
+          "medianUs": 1427.833,
+          "p95Us": 2099.958,
+          "prepareUs": 301.083,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 248.583,
+          "iterations": 5000,
+          "meanUs": 239.45445359999923,
+          "medianUs": 228.208,
+          "p95Us": 293.125,
+          "prepareUs": 253.75,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 53.375,
+          "iterations": 5000,
+          "meanUs": 49.83878460000002,
+          "medianUs": 44.833,
+          "p95Us": 71.958,
+          "prepareUs": 255.25,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 285.167,
+          "iterations": 5000,
+          "meanUs": 248.03987080000024,
+          "medianUs": 250.542,
+          "p95Us": 281.5,
+          "prepareUs": 262.542,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 262.042,
+          "iterations": 5000,
+          "meanUs": 230.51839679999975,
+          "medianUs": 221.75,
+          "p95Us": 263.875,
+          "prepareUs": 240.333,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 269.833,
+          "iterations": 500,
+          "meanUs": 227.70325,
+          "medianUs": 219,
+          "p95Us": 253.041,
+          "prepareUs": 251.5,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 266.625,
+          "iterations": 50,
+          "meanUs": 230.36752,
+          "medianUs": 217.333,
+          "p95Us": 244.334,
+          "prepareUs": 284.042,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 1,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 2033.291,
+          "iterations": 5000,
+          "meanUs": 28.32251239999998,
+          "medianUs": 28,
+          "p95Us": 29.25,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 31.083000000000002,
+          "iterations": 5000,
+          "meanUs": 26.339665000000142,
+          "medianUs": 25.583,
+          "p95Us": 28.458000000000002,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 62.58299999999999,
+          "iterations": 5000,
+          "meanUs": 44.4801054000001,
+          "medianUs": 42.459,
+          "p95Us": 50.125,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 49.5,
+          "iterations": 5000,
+          "meanUs": 44.651596600000076,
+          "medianUs": 43.375,
+          "p95Us": 49.708,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 31.291999999999998,
+          "iterations": 5000,
+          "meanUs": 28.08708299999989,
+          "medianUs": 27.334,
+          "p95Us": 29.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 29.458000000000002,
+          "iterations": 5000,
+          "meanUs": 26.518180000000125,
+          "medianUs": 26.125,
+          "p95Us": 26.959,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 424.08399999999995,
+          "iterations": 5000,
+          "meanUs": 50.80022780000013,
+          "medianUs": 49.208,
+          "p95Us": 60,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 112.875,
+          "iterations": 5000,
+          "meanUs": 100.62040579999912,
+          "medianUs": 99.042,
+          "p95Us": 109.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 962.7919999999999,
+          "iterations": 500,
+          "meanUs": 881.6638159999999,
+          "medianUs": 869.541,
+          "p95Us": 964.917,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 10890.417,
+          "iterations": 50,
+          "meanUs": 9820.918300000001,
+          "medianUs": 9771.125,
+          "p95Us": 10606.625,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 1,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1348.334,
+          "iterations": 5000,
+          "meanUs": 272.02052859999975,
+          "medianUs": 247.791,
+          "p95Us": 422.75,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 274.542,
+          "iterations": 5000,
+          "meanUs": 294.52913979999965,
+          "medianUs": 252.083,
+          "p95Us": 458.083,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 473.584,
+          "iterations": 5000,
+          "meanUs": 452.56936239999953,
+          "medianUs": 421.417,
+          "p95Us": 695.125,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 990.458,
+          "iterations": 5000,
+          "meanUs": 884.6141458000013,
+          "medianUs": 856.208,
+          "p95Us": 1388.375,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 277,
+          "iterations": 5000,
+          "meanUs": 279.82357540000044,
+          "medianUs": 262.75,
+          "p95Us": 448.667,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 162.833,
+          "iterations": 5000,
+          "meanUs": 177.9685306,
+          "medianUs": 162.5,
+          "p95Us": 312.334,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 307.042,
+          "iterations": 5000,
+          "meanUs": 288.2559871999998,
+          "medianUs": 271.5,
+          "p95Us": 459.292,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 440.666,
+          "iterations": 5000,
+          "meanUs": 538.9788750000004,
+          "medianUs": 446.375,
+          "p95Us": 840.666,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6351.334,
+          "iterations": 500,
+          "meanUs": 6287.56075,
+          "medianUs": 6090.083,
+          "p95Us": 7364.875,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 447912.334,
+          "iterations": 50,
+          "meanUs": 467668.3300799999,
+          "medianUs": 465064.167,
+          "p95Us": 504364.125,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 1,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 2280.75,
+          "iterations": 5000,
+          "meanUs": 29.18727000000002,
+          "medianUs": 28.416999999999998,
+          "p95Us": 31.958000000000002,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 33.75,
+          "iterations": 5000,
+          "meanUs": 28.74383060000001,
+          "medianUs": 27.792,
+          "p95Us": 32.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 72.959,
+          "iterations": 5000,
+          "meanUs": 46.10484020000003,
+          "medianUs": 44.417,
+          "p95Us": 54.167,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 56.5,
+          "iterations": 5000,
+          "meanUs": 49.12606139999972,
+          "medianUs": 46.792,
+          "p95Us": 53.417,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 37.542,
+          "iterations": 5000,
+          "meanUs": 32.118524200000024,
+          "medianUs": 30.333,
+          "p95Us": 36.041000000000004,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 32.916999999999994,
+          "iterations": 5000,
+          "meanUs": 37.765745400000114,
+          "medianUs": 30.125,
+          "p95Us": 51.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 891.25,
+          "iterations": 5000,
+          "meanUs": 56.049328199999884,
+          "medianUs": 52.417,
+          "p95Us": 61.375,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 116.375,
+          "iterations": 5000,
+          "meanUs": 99.84099020000018,
+          "medianUs": 98.167,
+          "p95Us": 109.292,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 901.584,
+          "iterations": 500,
+          "meanUs": 868.711072000001,
+          "medianUs": 857.625,
+          "p95Us": 957.75,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 9930.25,
+          "iterations": 50,
+          "meanUs": 8762.42574,
+          "medianUs": 8694.083,
+          "p95Us": 9223.791000000001,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 1,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1405.167,
+          "iterations": 5000,
+          "meanUs": 414.2589815999996,
+          "medianUs": 395.5,
+          "p95Us": 581.125,
+          "prepareUs": 0.083,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 422.333,
+          "iterations": 5000,
+          "meanUs": 444.64063660000033,
+          "medianUs": 398.459,
+          "p95Us": 666.833,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 835.333,
+          "iterations": 5000,
+          "meanUs": 812.4227240000008,
+          "medianUs": 762.583,
+          "p95Us": 1184.542,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1640.375,
+          "iterations": 5000,
+          "meanUs": 1743.3535630000015,
+          "medianUs": 1683.5,
+          "p95Us": 2312.583,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 470.708,
+          "iterations": 5000,
+          "meanUs": 450.06041700000026,
+          "medianUs": 401.667,
+          "p95Us": 677.75,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 222.125,
+          "iterations": 5000,
+          "meanUs": 215.40460979999997,
+          "medianUs": 197.625,
+          "p95Us": 359.25,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 552.709,
+          "iterations": 5000,
+          "meanUs": 411.26745940000006,
+          "medianUs": 387.958,
+          "p95Us": 554.292,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 436.416,
+          "iterations": 5000,
+          "meanUs": 678.4008632000008,
+          "medianUs": 471.708,
+          "p95Us": 1289.791,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 501.833,
+          "iterations": 500,
+          "meanUs": 433.2008439999996,
+          "medianUs": 398.041,
+          "p95Us": 635.375,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 658.208,
+          "iterations": 50,
+          "meanUs": 536.5583200000001,
+          "medianUs": 484.833,
+          "p95Us": 961.75,
+          "prepareUs": 0.208,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 1,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream-cached",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 848.875,
+          "iterations": 5000,
+          "meanUs": 232.25476919999966,
+          "medianUs": 219.166,
+          "p95Us": 300.917,
+          "prepareUs": 979.042,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 239.417,
+          "iterations": 5000,
+          "meanUs": 243.0053446000002,
+          "medianUs": 225.791,
+          "p95Us": 307.458,
+          "prepareUs": 257.583,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 760.208,
+          "iterations": 5000,
+          "meanUs": 649.8938702000016,
+          "medianUs": 623.541,
+          "p95Us": 793.208,
+          "prepareUs": 267.708,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1776.458,
+          "iterations": 5000,
+          "meanUs": 1629.8592591999995,
+          "medianUs": 1580.916,
+          "p95Us": 1969.375,
+          "prepareUs": 247.625,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 259.042,
+          "iterations": 5000,
+          "meanUs": 276.02153740000006,
+          "medianUs": 271.334,
+          "p95Us": 299.917,
+          "prepareUs": 259.209,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 62.833,
+          "iterations": 5000,
+          "meanUs": 56.11810239999996,
+          "medianUs": 50.416,
+          "p95Us": 95.459,
+          "prepareUs": 260.417,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 300.792,
+          "iterations": 5000,
+          "meanUs": 265.72743380000054,
+          "medianUs": 251.958,
+          "p95Us": 346.334,
+          "prepareUs": 253.875,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 271.75,
+          "iterations": 5000,
+          "meanUs": 265.0868316000001,
+          "medianUs": 250.792,
+          "p95Us": 362.791,
+          "prepareUs": 247.542,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 332.208,
+          "iterations": 500,
+          "meanUs": 262.1110040000001,
+          "medianUs": 254.958,
+          "p95Us": 306.458,
+          "prepareUs": 290.959,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 425.958,
+          "iterations": 50,
+          "meanUs": 269.64842000000004,
+          "medianUs": 256.5,
+          "p95Us": 278.625,
+          "prepareUs": 376.5,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 1,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1317.667,
+          "iterations": 5000,
+          "meanUs": 341.5480236000002,
+          "medianUs": 262.208,
+          "p95Us": 577.125,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 262.083,
+          "iterations": 5000,
+          "meanUs": 292.0767850000002,
+          "medianUs": 275.709,
+          "p95Us": 447.375,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 555.583,
+          "iterations": 5000,
+          "meanUs": 491.55470280000054,
+          "medianUs": 460.333,
+          "p95Us": 735.958,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 888.208,
+          "iterations": 5000,
+          "meanUs": 970.1331096000002,
+          "medianUs": 939.25,
+          "p95Us": 1345.333,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 287.166,
+          "iterations": 5000,
+          "meanUs": 295.3060444000002,
+          "medianUs": 277.25,
+          "p95Us": 451.334,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 212.916,
+          "iterations": 5000,
+          "meanUs": 187.50957160000013,
+          "medianUs": 170.125,
+          "p95Us": 322.625,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 306.791,
+          "iterations": 5000,
+          "meanUs": 320.4830077999992,
+          "medianUs": 285.75,
+          "p95Us": 497.708,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 456.583,
+          "iterations": 5000,
+          "meanUs": 544.1087563999997,
+          "medianUs": 460.917,
+          "p95Us": 828.458,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6456.917,
+          "iterations": 500,
+          "meanUs": 5961.094572000004,
+          "medianUs": 5866.584,
+          "p95Us": 6489.541,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 452589.25,
+          "iterations": 50,
+          "meanUs": 491539.51493999996,
+          "medianUs": 479613.042,
+          "p95Us": 616366.167,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 2,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1574.125,
+          "iterations": 5000,
+          "meanUs": 328.1195956000004,
+          "medianUs": 256.125,
+          "p95Us": 630.208,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 243.75,
+          "iterations": 5000,
+          "meanUs": 280.44615459999983,
+          "medianUs": 252.042,
+          "p95Us": 454.666,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 464.625,
+          "iterations": 5000,
+          "meanUs": 474.00955679999953,
+          "medianUs": 414.375,
+          "p95Us": 769.167,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 990.458,
+          "iterations": 5000,
+          "meanUs": 890.7415055999971,
+          "medianUs": 861.375,
+          "p95Us": 1413.458,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 296.25,
+          "iterations": 5000,
+          "meanUs": 285.9815270000004,
+          "medianUs": 257.167,
+          "p95Us": 490.291,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 198.458,
+          "iterations": 5000,
+          "meanUs": 189.0855716000002,
+          "medianUs": 163.584,
+          "p95Us": 339.167,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 342.375,
+          "iterations": 5000,
+          "meanUs": 277.7460826000011,
+          "medianUs": 254.458,
+          "p95Us": 446.375,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 488.75,
+          "iterations": 5000,
+          "meanUs": 520.3090909999994,
+          "medianUs": 448.416,
+          "p95Us": 862.375,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6677.333,
+          "iterations": 500,
+          "meanUs": 6539.04707,
+          "medianUs": 6406.125,
+          "p95Us": 7323.959,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 507318.083,
+          "iterations": 50,
+          "meanUs": 494055.52328,
+          "medianUs": 485091.042,
+          "p95Us": 565454.834,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 2,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 2022.1670000000001,
+          "iterations": 5000,
+          "meanUs": 26.566619399999983,
+          "medianUs": 26.25,
+          "p95Us": 26.792,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 33.083,
+          "iterations": 5000,
+          "meanUs": 26.47536439999988,
+          "medianUs": 26.125,
+          "p95Us": 27.208000000000002,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 54.75,
+          "iterations": 5000,
+          "meanUs": 43.609995400000045,
+          "medianUs": 42.625,
+          "p95Us": 46.75,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 51.333,
+          "iterations": 5000,
+          "meanUs": 43.56663960000014,
+          "medianUs": 43.25,
+          "p95Us": 43.625,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 31,
+          "iterations": 5000,
+          "meanUs": 27.43581120000006,
+          "medianUs": 27.291,
+          "p95Us": 27.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 28.75,
+          "iterations": 5000,
+          "meanUs": 26.189830600000064,
+          "medianUs": 26.083000000000002,
+          "p95Us": 26.291,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 493.58400000000006,
+          "iterations": 5000,
+          "meanUs": 49.46327539999976,
+          "medianUs": 49.083,
+          "p95Us": 50,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 119,
+          "iterations": 5000,
+          "meanUs": 100.36164639999967,
+          "medianUs": 99.458,
+          "p95Us": 105.125,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 944,
+          "iterations": 500,
+          "meanUs": 860.577624,
+          "medianUs": 852.4169999999999,
+          "p95Us": 891.083,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 10322.625,
+          "iterations": 50,
+          "meanUs": 8995.60672,
+          "medianUs": 8991.542,
+          "p95Us": 9102.625,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 2,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1627.375,
+          "iterations": 5000,
+          "meanUs": 445.8718975999999,
+          "medianUs": 396.708,
+          "p95Us": 664.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 418,
+          "iterations": 5000,
+          "meanUs": 446.8006815999997,
+          "medianUs": 416.416,
+          "p95Us": 646.666,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 909.125,
+          "iterations": 5000,
+          "meanUs": 825.7423970000026,
+          "medianUs": 782.75,
+          "p95Us": 1133.5,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1593.916,
+          "iterations": 5000,
+          "meanUs": 1678.679179799999,
+          "medianUs": 1606.167,
+          "p95Us": 2189,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 435.958,
+          "iterations": 5000,
+          "meanUs": 430.2286332000009,
+          "medianUs": 415,
+          "p95Us": 559.083,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 196.75,
+          "iterations": 5000,
+          "meanUs": 208.69965340000002,
+          "medianUs": 195.666,
+          "p95Us": 339,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 505.5,
+          "iterations": 5000,
+          "meanUs": 418.1445502000001,
+          "medianUs": 402.416,
+          "p95Us": 569.416,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 397.083,
+          "iterations": 5000,
+          "meanUs": 439.134164799999,
+          "medianUs": 389.959,
+          "p95Us": 665.167,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 1054.167,
+          "iterations": 500,
+          "meanUs": 421.5002259999997,
+          "medianUs": 372.917,
+          "p95Us": 676.917,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 764.292,
+          "iterations": 50,
+          "meanUs": 541.1633999999999,
+          "medianUs": 483.917,
+          "p95Us": 1067.959,
+          "prepareUs": 0.167,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 2,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream-cached",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1352.792,
+          "iterations": 5000,
+          "meanUs": 235.2384478000001,
+          "medianUs": 214.416,
+          "p95Us": 358.167,
+          "prepareUs": 849.583,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 240.334,
+          "iterations": 5000,
+          "meanUs": 246.57437960000004,
+          "medianUs": 225.042,
+          "p95Us": 380.084,
+          "prepareUs": 262.958,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 691.375,
+          "iterations": 5000,
+          "meanUs": 590.106263599999,
+          "medianUs": 535.917,
+          "p95Us": 842.917,
+          "prepareUs": 274.791,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1415.25,
+          "iterations": 5000,
+          "meanUs": 1675.1557855999965,
+          "medianUs": 1464.125,
+          "p95Us": 2430.875,
+          "prepareUs": 251.541,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 250.208,
+          "iterations": 5000,
+          "meanUs": 338.9999350000001,
+          "medianUs": 293.5,
+          "p95Us": 593.083,
+          "prepareUs": 306.625,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 51.375,
+          "iterations": 5000,
+          "meanUs": 50.70770240000001,
+          "medianUs": 45.959,
+          "p95Us": 70.875,
+          "prepareUs": 263.791,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 277.709,
+          "iterations": 5000,
+          "meanUs": 237.68014800000046,
+          "medianUs": 222.25,
+          "p95Us": 306.708,
+          "prepareUs": 263.375,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 257.125,
+          "iterations": 5000,
+          "meanUs": 241.43922780000014,
+          "medianUs": 216.917,
+          "p95Us": 361.833,
+          "prepareUs": 256.417,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 249.209,
+          "iterations": 500,
+          "meanUs": 277.58066799999995,
+          "medianUs": 226.75,
+          "p95Us": 568.916,
+          "prepareUs": 275,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 552.083,
+          "iterations": 50,
+          "meanUs": 265.2916,
+          "medianUs": 241.292,
+          "p95Us": 382.666,
+          "prepareUs": 533.834,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 2,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 2835.292,
+          "iterations": 5000,
+          "meanUs": 330.1822718000007,
+          "medianUs": 270,
+          "p95Us": 650.417,
+          "prepareUs": 0.166,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 300,
+          "iterations": 5000,
+          "meanUs": 329.8597116000001,
+          "medianUs": 269.125,
+          "p95Us": 578,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 482.083,
+          "iterations": 5000,
+          "meanUs": 479.5851986000005,
+          "medianUs": 427.125,
+          "p95Us": 827.167,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1075.625,
+          "iterations": 5000,
+          "meanUs": 954.3040943999998,
+          "medianUs": 891.083,
+          "p95Us": 1537.375,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 293.667,
+          "iterations": 5000,
+          "meanUs": 310.1728490000001,
+          "medianUs": 273.667,
+          "p95Us": 562.25,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 203.625,
+          "iterations": 5000,
+          "meanUs": 197.95160339999987,
+          "medianUs": 175.583,
+          "p95Us": 355.625,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 360.709,
+          "iterations": 5000,
+          "meanUs": 303.44813700000003,
+          "medianUs": 272.791,
+          "p95Us": 513.292,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 614.458,
+          "iterations": 5000,
+          "meanUs": 492.6507167999995,
+          "medianUs": 451.542,
+          "p95Us": 780.875,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6481.333,
+          "iterations": 500,
+          "meanUs": 6624.144265999994,
+          "medianUs": 6476.625,
+          "p95Us": 7458.75,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 503637.875,
+          "iterations": 50,
+          "meanUs": 494029.61248,
+          "medianUs": 479269.958,
+          "p95Us": 595025.042,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 2,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 2074.041,
+          "iterations": 5000,
+          "meanUs": 30.247947399999912,
+          "medianUs": 30,
+          "p95Us": 31.208,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 35.25,
+          "iterations": 5000,
+          "meanUs": 29.674860199999983,
+          "medianUs": 29.584,
+          "p95Us": 30.125,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 66.95899999999999,
+          "iterations": 5000,
+          "meanUs": 48.15420239999988,
+          "medianUs": 47.292,
+          "p95Us": 49.25,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 60.333,
+          "iterations": 5000,
+          "meanUs": 48.66711879999966,
+          "medianUs": 48.458999999999996,
+          "p95Us": 48.958,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 38.334,
+          "iterations": 5000,
+          "meanUs": 32.2265357999998,
+          "medianUs": 32.583000000000006,
+          "p95Us": 32.916000000000004,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 33.625,
+          "iterations": 5000,
+          "meanUs": 30.023821999999864,
+          "medianUs": 29.375,
+          "p95Us": 30.791999999999998,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 430.709,
+          "iterations": 5000,
+          "meanUs": 54.90237459999996,
+          "medianUs": 54.375,
+          "p95Us": 58.375,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 145.167,
+          "iterations": 5000,
+          "meanUs": 108.5524189999998,
+          "medianUs": 105.125,
+          "p95Us": 126.375,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 959.709,
+          "iterations": 500,
+          "meanUs": 934.1268319999998,
+          "medianUs": 893.625,
+          "p95Us": 1148.375,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 10991.792,
+          "iterations": 50,
+          "meanUs": 9569.60168,
+          "medianUs": 9347.334,
+          "p95Us": 10184.916000000001,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 3,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 563.7090000000001,
+          "iterations": 5000,
+          "meanUs": 27.99959240000004,
+          "medianUs": 27.625,
+          "p95Us": 28.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 33.917,
+          "iterations": 5000,
+          "meanUs": 27.59027860000002,
+          "medianUs": 27.166,
+          "p95Us": 28.458000000000002,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 54.709,
+          "iterations": 5000,
+          "meanUs": 44.86243460000029,
+          "medianUs": 44.833000000000006,
+          "p95Us": 46.542,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 50.791999999999994,
+          "iterations": 5000,
+          "meanUs": 45.62392780000015,
+          "medianUs": 44.625,
+          "p95Us": 47.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 34.417,
+          "iterations": 5000,
+          "meanUs": 29.540048999999858,
+          "medianUs": 29.125,
+          "p95Us": 30.25,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 33.167,
+          "iterations": 5000,
+          "meanUs": 28.268361199999998,
+          "medianUs": 27.833,
+          "p95Us": 28.959,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 108.5,
+          "iterations": 5000,
+          "meanUs": 52.162659600000005,
+          "medianUs": 51.833000000000006,
+          "p95Us": 55.083,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 123.542,
+          "iterations": 5000,
+          "meanUs": 143.14023799999995,
+          "medianUs": 113.291,
+          "p95Us": 211.584,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 1168.5829999999999,
+          "iterations": 500,
+          "meanUs": 994.2925900000006,
+          "medianUs": 949.958,
+          "p95Us": 1127.5420000000001,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 10414.291000000001,
+          "iterations": 50,
+          "meanUs": 9614.506620000002,
+          "medianUs": 9606.125,
+          "p95Us": 10090.791,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 3,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 2083.416,
+          "iterations": 5000,
+          "meanUs": 315.9089548000007,
+          "medianUs": 255.917,
+          "p95Us": 629,
+          "prepareUs": 0.084,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 288.834,
+          "iterations": 5000,
+          "meanUs": 322.03731459999995,
+          "medianUs": 262,
+          "p95Us": 557.667,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 460.416,
+          "iterations": 5000,
+          "meanUs": 482.59922579999994,
+          "medianUs": 430.083,
+          "p95Us": 849.292,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 901.959,
+          "iterations": 5000,
+          "meanUs": 964.7085539999988,
+          "medianUs": 886.875,
+          "p95Us": 1595.167,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 269.625,
+          "iterations": 5000,
+          "meanUs": 274.1053796,
+          "medianUs": 251.5,
+          "p95Us": 433.291,
+          "prepareUs": 0.167,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 216.875,
+          "iterations": 5000,
+          "meanUs": 180.13433840000008,
+          "medianUs": 163.25,
+          "p95Us": 309.375,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 317,
+          "iterations": 5000,
+          "meanUs": 275.06924599999974,
+          "medianUs": 255.458,
+          "p95Us": 399.292,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 502.084,
+          "iterations": 5000,
+          "meanUs": 455.9043691999986,
+          "medianUs": 428.75,
+          "p95Us": 681.167,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6266,
+          "iterations": 500,
+          "meanUs": 6806.034921999998,
+          "medianUs": 6464,
+          "p95Us": 7575.25,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 481444.958,
+          "iterations": 50,
+          "meanUs": 490829.69008000003,
+          "medianUs": 479433.542,
+          "p95Us": 569653.083,
+          "prepareUs": 0.167,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 3,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream-cached",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 528.875,
+          "iterations": 5000,
+          "meanUs": 232.5499414000006,
+          "medianUs": 215.916,
+          "p95Us": 332.875,
+          "prepareUs": 858.5,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 382.25,
+          "iterations": 5000,
+          "meanUs": 240.65483999999987,
+          "medianUs": 226.875,
+          "p95Us": 324.583,
+          "prepareUs": 282.084,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 652.834,
+          "iterations": 5000,
+          "meanUs": 592.0059133999998,
+          "medianUs": 543.958,
+          "p95Us": 815.875,
+          "prepareUs": 271.333,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1329.584,
+          "iterations": 5000,
+          "meanUs": 1467.767065600005,
+          "medianUs": 1413.75,
+          "p95Us": 1952.459,
+          "prepareUs": 271.833,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 267.667,
+          "iterations": 5000,
+          "meanUs": 239.93142600000024,
+          "medianUs": 230.416,
+          "p95Us": 259.583,
+          "prepareUs": 266.209,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 57.917,
+          "iterations": 5000,
+          "meanUs": 48.76098920000001,
+          "medianUs": 45.167,
+          "p95Us": 64.167,
+          "prepareUs": 271.834,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 641.167,
+          "iterations": 5000,
+          "meanUs": 229.16895600000032,
+          "medianUs": 222.459,
+          "p95Us": 242.875,
+          "prepareUs": 857.333,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 238.625,
+          "iterations": 5000,
+          "meanUs": 219.18148160000015,
+          "medianUs": 213,
+          "p95Us": 233.5,
+          "prepareUs": 252.084,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 249.208,
+          "iterations": 500,
+          "meanUs": 227.59643600000004,
+          "medianUs": 213.459,
+          "p95Us": 332.542,
+          "prepareUs": 251.5,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 770.666,
+          "iterations": 50,
+          "meanUs": 217.195,
+          "medianUs": 216.709,
+          "p95Us": 235.416,
+          "prepareUs": 305.708,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 3,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1339.958,
+          "iterations": 5000,
+          "meanUs": 297.7721768000003,
+          "medianUs": 261.5,
+          "p95Us": 540.167,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 238.584,
+          "iterations": 5000,
+          "meanUs": 323.3549139999998,
+          "medianUs": 267.667,
+          "p95Us": 609.916,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 509.834,
+          "iterations": 5000,
+          "meanUs": 453.42808579999974,
+          "medianUs": 419.834,
+          "p95Us": 718.833,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 944.375,
+          "iterations": 5000,
+          "meanUs": 1123.428299999999,
+          "medianUs": 920.625,
+          "p95Us": 1867.584,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 320.083,
+          "iterations": 5000,
+          "meanUs": 306.02761119999985,
+          "medianUs": 272.667,
+          "p95Us": 534,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 181.042,
+          "iterations": 5000,
+          "meanUs": 221.70129479999986,
+          "medianUs": 178.459,
+          "p95Us": 379.458,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 322.458,
+          "iterations": 5000,
+          "meanUs": 306.91053480000005,
+          "medianUs": 273.542,
+          "p95Us": 522,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 505.333,
+          "iterations": 5000,
+          "meanUs": 495.30742339999944,
+          "medianUs": 451.167,
+          "p95Us": 784.084,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6288.959,
+          "iterations": 500,
+          "meanUs": 6577.267752000003,
+          "medianUs": 6437.541,
+          "p95Us": 7449.958,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 489570.75,
+          "iterations": 50,
+          "meanUs": 481556.0751000001,
+          "medianUs": 475910.875,
+          "p95Us": 518786.375,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 3,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 2107.75,
+          "iterations": 5000,
+          "meanUs": 29.92977520000023,
+          "medianUs": 29.875,
+          "p95Us": 30.958,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 37.5,
+          "iterations": 5000,
+          "meanUs": 29.683633199999914,
+          "medianUs": 29.541,
+          "p95Us": 29.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 62.834,
+          "iterations": 5000,
+          "meanUs": 47.26651639999986,
+          "medianUs": 47.166999999999994,
+          "p95Us": 48.833,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 54.166000000000004,
+          "iterations": 5000,
+          "meanUs": 46.98943360000016,
+          "medianUs": 46.667,
+          "p95Us": 48.458999999999996,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 35.042,
+          "iterations": 5000,
+          "meanUs": 30.461949999999728,
+          "medianUs": 30.333,
+          "p95Us": 30.750000000000004,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 31.291999999999998,
+          "iterations": 5000,
+          "meanUs": 29.676914399999827,
+          "medianUs": 29.291,
+          "p95Us": 30.708,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 916.5409999999999,
+          "iterations": 5000,
+          "meanUs": 55.020422199999736,
+          "medianUs": 52.75,
+          "p95Us": 76.25,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 117.375,
+          "iterations": 5000,
+          "meanUs": 102.27521399999958,
+          "medianUs": 100.958,
+          "p95Us": 105.166,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 1003.6669999999999,
+          "iterations": 500,
+          "meanUs": 1180.7704899999999,
+          "medianUs": 903.75,
+          "p95Us": 1483.75,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 10143.707999999999,
+          "iterations": 50,
+          "meanUs": 9776.955819999997,
+          "medianUs": 9655.917,
+          "p95Us": 10528.208,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 3,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1966.584,
+          "iterations": 5000,
+          "meanUs": 423.6429219999992,
+          "medianUs": 373.167,
+          "p95Us": 751.959,
+          "prepareUs": 0.167,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 625.375,
+          "iterations": 5000,
+          "meanUs": 435.79510279999954,
+          "medianUs": 372.666,
+          "p95Us": 637.416,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 799.833,
+          "iterations": 5000,
+          "meanUs": 763.426820999999,
+          "medianUs": 713.042,
+          "p95Us": 1104.459,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1633.125,
+          "iterations": 5000,
+          "meanUs": 1735.9224284000043,
+          "medianUs": 1631.834,
+          "p95Us": 2432.792,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 427.292,
+          "iterations": 5000,
+          "meanUs": 407.2720557999995,
+          "medianUs": 384.25,
+          "p95Us": 520,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 192,
+          "iterations": 5000,
+          "meanUs": 209.2736871999998,
+          "medianUs": 191.333,
+          "p95Us": 350.917,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 442.334,
+          "iterations": 5000,
+          "meanUs": 394.8521152000001,
+          "medianUs": 377.042,
+          "p95Us": 462.042,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 414.042,
+          "iterations": 5000,
+          "meanUs": 445.9513582000004,
+          "medianUs": 376.666,
+          "p95Us": 731.416,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 390.292,
+          "iterations": 500,
+          "meanUs": 664.6661039999998,
+          "medianUs": 423.542,
+          "p95Us": 1464.625,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 1109.041,
+          "iterations": 50,
+          "meanUs": 637.5258200000001,
+          "medianUs": 436.667,
+          "p95Us": 977.792,
+          "prepareUs": 0.208,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 4,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1668.916,
+          "iterations": 5000,
+          "meanUs": 387.31821860000116,
+          "medianUs": 275.667,
+          "p95Us": 756,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 268.833,
+          "iterations": 5000,
+          "meanUs": 295.0666639999999,
+          "medianUs": 259.667,
+          "p95Us": 516.792,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 485.792,
+          "iterations": 5000,
+          "meanUs": 513.0294127999992,
+          "medianUs": 441.209,
+          "p95Us": 957,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 953.083,
+          "iterations": 5000,
+          "meanUs": 940.3865187999994,
+          "medianUs": 873.958,
+          "p95Us": 1528.542,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 256.083,
+          "iterations": 5000,
+          "meanUs": 277.10004640000017,
+          "medianUs": 253.167,
+          "p95Us": 444.5,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 178.959,
+          "iterations": 5000,
+          "meanUs": 221.55852859999985,
+          "medianUs": 170.959,
+          "p95Us": 429.917,
+          "prepareUs": 0.125,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 386.75,
+          "iterations": 5000,
+          "meanUs": 336.08157880000016,
+          "medianUs": 276.459,
+          "p95Us": 603.542,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 449.166,
+          "iterations": 5000,
+          "meanUs": 522.2704866000008,
+          "medianUs": 456.709,
+          "p95Us": 859.833,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 6866.417,
+          "iterations": 500,
+          "meanUs": 6639.652529999996,
+          "medianUs": 6525.125,
+          "p95Us": 7448,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 476841.375,
+          "iterations": 50,
+          "meanUs": 490465.95916,
+          "medianUs": 478055.708,
+          "p95Us": 558641.708,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 4,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 2000.291,
+          "iterations": 5000,
+          "meanUs": 27.6226088,
+          "medianUs": 27.291999999999998,
+          "p95Us": 29.167,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 33.042,
+          "iterations": 5000,
+          "meanUs": 28.308870400000032,
+          "medianUs": 27,
+          "p95Us": 33.25,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 65.041,
+          "iterations": 5000,
+          "meanUs": 46.40971439999982,
+          "medianUs": 45.083999999999996,
+          "p95Us": 53.25,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 62.459,
+          "iterations": 5000,
+          "meanUs": 51.43871879999999,
+          "medianUs": 47.75,
+          "p95Us": 59.792,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 32.833000000000006,
+          "iterations": 5000,
+          "meanUs": 29.57737360000002,
+          "medianUs": 29.042,
+          "p95Us": 30.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 32.625,
+          "iterations": 5000,
+          "meanUs": 28.3130473999999,
+          "medianUs": 27.915999999999997,
+          "p95Us": 29.083,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 867.375,
+          "iterations": 5000,
+          "meanUs": 61.867862199999884,
+          "medianUs": 52.375,
+          "p95Us": 88.167,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 124.66699999999999,
+          "iterations": 5000,
+          "meanUs": 136.60172000000028,
+          "medianUs": 109.375,
+          "p95Us": 167.458,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 1020.625,
+          "iterations": 500,
+          "meanUs": 944.6840800000003,
+          "medianUs": 937.459,
+          "p95Us": 1058.542,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 10681.542000000001,
+          "iterations": 50,
+          "meanUs": 9742.49998,
+          "medianUs": 9716.25,
+          "p95Us": 10345.333,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "json",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 4,
+      "driver": "modernc.org/sqlite",
+      "engine": "go",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1533.333,
+          "iterations": 5000,
+          "meanUs": 286.1213223999997,
+          "medianUs": 256,
+          "p95Us": 494.75,
+          "prepareUs": 0.167,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 278.958,
+          "iterations": 5000,
+          "meanUs": 284.3567167999998,
+          "medianUs": 259.167,
+          "p95Us": 445.667,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 499.416,
+          "iterations": 5000,
+          "meanUs": 457.1103092000009,
+          "medianUs": 420.375,
+          "p95Us": 757.167,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 938.25,
+          "iterations": 5000,
+          "meanUs": 955.2847170000015,
+          "medianUs": 884.625,
+          "p95Us": 1533.875,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 313.292,
+          "iterations": 5000,
+          "meanUs": 309.93964859999915,
+          "medianUs": 274.291,
+          "p95Us": 531.5,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 187.125,
+          "iterations": 5000,
+          "meanUs": 208.74512019999983,
+          "medianUs": 177.709,
+          "p95Us": 420.25,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 1146.625,
+          "iterations": 5000,
+          "meanUs": 327.2239897999997,
+          "medianUs": 277.625,
+          "p95Us": 517.208,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 1310.166,
+          "iterations": 5000,
+          "meanUs": 493.5535166000002,
+          "medianUs": 453.5,
+          "p95Us": 762.041,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 7248.041,
+          "iterations": 500,
+          "meanUs": 6621.890244000002,
+          "medianUs": 6472.209,
+          "p95Us": 7522.334,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 485510.417,
+          "iterations": 50,
+          "meanUs": 500918.80086,
+          "medianUs": 492101.208,
+          "p95Us": 585778.125,
+          "prepareUs": 0.167,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 4,
+      "driver": "rusqlite + bundled SQLite",
+      "engine": "rust",
+      "measurements": [
+        {
+          "firstCheckUs": 537.375,
+          "iterations": 5000,
+          "meanUs": 32.1552729999999,
+          "medianUs": 31.167,
+          "p95Us": 33.125,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 37.416000000000004,
+          "iterations": 5000,
+          "meanUs": 31.07405319999993,
+          "medianUs": 30.416,
+          "p95Us": 31.5,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 65.083,
+          "iterations": 5000,
+          "meanUs": 68.37516299999983,
+          "medianUs": 48.708,
+          "p95Us": 59.625,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 67.58300000000001,
+          "iterations": 5000,
+          "meanUs": 52.1241197999998,
+          "medianUs": 50,
+          "p95Us": 54.917,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 43.208999999999996,
+          "iterations": 5000,
+          "meanUs": 34.04051939999988,
+          "medianUs": 32.5,
+          "p95Us": 35.125,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 36.625,
+          "iterations": 5000,
+          "meanUs": 33.48461379999991,
+          "medianUs": 31.5,
+          "p95Us": 34.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 104.917,
+          "iterations": 5000,
+          "meanUs": 57.582643799999715,
+          "medianUs": 56.166,
+          "p95Us": 60.667,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 132.166,
+          "iterations": 5000,
+          "meanUs": 108.61406540000009,
+          "medianUs": 105.709,
+          "p95Us": 118.417,
+          "prepareUs": 0,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 1056.792,
+          "iterations": 500,
+          "meanUs": 942.1266739999998,
+          "medianUs": 914.291,
+          "p95Us": 1157.25,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 11060.959,
+          "iterations": 50,
+          "meanUs": 9740.654179999998,
+          "medianUs": 9634.083999999999,
+          "p95Us": 10545.875,
+          "prepareUs": 0,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.50.2"
+    },
+    {
+      "sample": 4,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 1353.792,
+          "iterations": 5000,
+          "meanUs": 418.1599000000002,
+          "medianUs": 368.042,
+          "p95Us": 637.875,
+          "prepareUs": 0.083,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 391.916,
+          "iterations": 5000,
+          "meanUs": 404.8520671999997,
+          "medianUs": 375.875,
+          "p95Us": 596.625,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 820,
+          "iterations": 5000,
+          "meanUs": 860.2937621999997,
+          "medianUs": 763.042,
+          "p95Us": 1379.625,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 2175.375,
+          "iterations": 5000,
+          "meanUs": 1790.0042758000004,
+          "medianUs": 1660.292,
+          "p95Us": 2494.917,
+          "prepareUs": 0,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 428.75,
+          "iterations": 5000,
+          "meanUs": 414.77465200000063,
+          "medianUs": 383.916,
+          "p95Us": 603.333,
+          "prepareUs": 0,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 202.208,
+          "iterations": 5000,
+          "meanUs": 214.38394419999997,
+          "medianUs": 196.875,
+          "p95Us": 332.125,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 440.166,
+          "iterations": 5000,
+          "meanUs": 424.74471020000084,
+          "medianUs": 374.834,
+          "p95Us": 627.583,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 377.541,
+          "iterations": 5000,
+          "meanUs": 421.85230600000125,
+          "medianUs": 378.75,
+          "p95Us": 698.708,
+          "prepareUs": 0.042,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 874.584,
+          "iterations": 500,
+          "meanUs": 407.10164999999967,
+          "medianUs": 378.958,
+          "p95Us": 581.292,
+          "prepareUs": 0,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 728.542,
+          "iterations": 50,
+          "meanUs": 382.0108799999999,
+          "medianUs": 365.292,
+          "p95Us": 405.625,
+          "prepareUs": 0.041,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    },
+    {
+      "sample": 4,
+      "driver": "modernc.org/sqlite",
+      "engine": "upstream-cached",
+      "goVersion": "go1.27.1",
+      "gomaxprocs": 8,
+      "measurements": [
+        {
+          "firstCheckUs": 774.333,
+          "iterations": 5000,
+          "meanUs": 233.11029280000054,
+          "medianUs": 219.875,
+          "p95Us": 295,
+          "prepareUs": 889.166,
+          "snapshotInputBytes": 2685,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "direct-grant"
+        },
+        {
+          "firstCheckUs": 217.084,
+          "iterations": 5000,
+          "meanUs": 242.41363020000048,
+          "medianUs": 232.334,
+          "p95Us": 276.666,
+          "prepareUs": 281.916,
+          "snapshotInputBytes": 2607,
+          "tuples": 0,
+          "warmup": 500,
+          "workload": "empty-deny"
+        },
+        {
+          "firstCheckUs": 636.375,
+          "iterations": 5000,
+          "meanUs": 600.0743202000001,
+          "medianUs": 546.958,
+          "p95Us": 861.208,
+          "prepareUs": 276.875,
+          "snapshotInputBytes": 3662,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "userset-chain-12"
+        },
+        {
+          "firstCheckUs": 1638.541,
+          "iterations": 5000,
+          "meanUs": 1502.4655636000016,
+          "medianUs": 1442.792,
+          "p95Us": 2044.042,
+          "prepareUs": 282.417,
+          "snapshotInputBytes": 3602,
+          "tuples": 13,
+          "warmup": 500,
+          "workload": "parent-chain-12"
+        },
+        {
+          "firstCheckUs": 212.958,
+          "iterations": 5000,
+          "meanUs": 245.9729898000002,
+          "medianUs": 236,
+          "p95Us": 285.417,
+          "prepareUs": 248.958,
+          "snapshotInputBytes": 2770,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "intersection"
+        },
+        {
+          "firstCheckUs": 50.625,
+          "iterations": 5000,
+          "meanUs": 51.45881160000013,
+          "medianUs": 45.792,
+          "p95Us": 79.125,
+          "prepareUs": 270.167,
+          "snapshotInputBytes": 2766,
+          "tuples": 2,
+          "warmup": 500,
+          "workload": "exclusion"
+        },
+        {
+          "firstCheckUs": 288.375,
+          "iterations": 5000,
+          "meanUs": 247.95241160000018,
+          "medianUs": 226.875,
+          "p95Us": 379.875,
+          "prepareUs": 262.375,
+          "snapshotInputBytes": 2779,
+          "tuples": 1,
+          "warmup": 500,
+          "workload": "cel-int"
+        },
+        {
+          "firstCheckUs": 347.208,
+          "iterations": 5000,
+          "meanUs": 263.85976160000007,
+          "medianUs": 229.291,
+          "p95Us": 367.5,
+          "prepareUs": 314.833,
+          "snapshotInputBytes": 12270,
+          "tuples": 100,
+          "warmup": 500,
+          "workload": "snapshot-100"
+        },
+        {
+          "firstCheckUs": 300,
+          "iterations": 500,
+          "meanUs": 256.8562020000001,
+          "medianUs": 235.834,
+          "p95Us": 385.875,
+          "prepareUs": 287.541,
+          "snapshotInputBytes": 101370,
+          "tuples": 1000,
+          "warmup": 100,
+          "workload": "snapshot-1000"
+        },
+        {
+          "firstCheckUs": 424.958,
+          "iterations": 50,
+          "meanUs": 271.71582,
+          "medianUs": 238.25,
+          "p95Us": 518,
+          "prepareUs": 333.167,
+          "snapshotInputBytes": 1010370,
+          "tuples": 10000,
+          "warmup": 10,
+          "workload": "snapshot-10000"
+        }
+      ],
+      "mode": "sqlite",
+      "sqliteVersion": "3.53.4"
+    }
+  ]
+}

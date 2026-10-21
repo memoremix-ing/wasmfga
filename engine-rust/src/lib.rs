@@ -2,6 +2,7 @@
 mod conditions;
 mod evaluate;
 mod model;
+pub mod native;
 use model::{ensure, validate_context, Model, Tuple, ValidatedModel};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeSet;
@@ -37,20 +38,26 @@ fn alias<'a>(v: &'a Value, snake: &str, camel: &str) -> &'a Value {
 }
 
 pub fn process(r: Value) -> Result<Value> {
+    process_ref(&r)
+}
+
+/// Native borrowed-input entry point. It avoids cloning/serializing the outer
+/// envelope; stored model/tuple bodies retain the common JSON representation.
+pub fn process_ref(r: &Value) -> Result<Value> {
     let dialect = r.get("dialect").and_then(Value::as_str).unwrap_or("");
     ensure(
         matches!(dialect, "" | "sqlite" | "turso"),
         "unsupported dialect (sqlite/turso only)",
     )?;
-    let op = text(&r, "operation")?;
+    let op = text(r, "operation")?;
     if op == "schema" {
         return Ok(json!({"statements":[
             statement("execute","CREATE TABLE IF NOT EXISTS wasmfga_models (store_id TEXT NOT NULL, model_id TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY (store_id, model_id))",vec![]),
             statement("execute","CREATE TABLE IF NOT EXISTS wasmfga_tuples (store_id TEXT NOT NULL, object TEXT NOT NULL, relation TEXT NOT NULL, user TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY (store_id, object, relation, user))",vec![])
         ]}));
     }
-    let store = text(&r, "store_id")?;
-    let id = text(&r, "model_id")?;
+    let store = text(r, "store_id")?;
+    let id = text(r, "model_id")?;
     ensure(
         !store.is_empty() && store.len() <= 256 && !id.is_empty() && id.len() <= 256,
         "store_id and model_id must contain 1..256 bytes",
@@ -90,7 +97,7 @@ pub fn process(r: Value) -> Result<Value> {
     ensure(model.id == id, "model ID does not match request")?;
     let model = ValidatedModel::new(model)?;
     if op == "write" {
-        return plan_write(&r, store, &model);
+        return plan_write(r, store, &model);
     }
     ensure(
         results[1].len() <= MAX_TUPLES,

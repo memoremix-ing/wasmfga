@@ -33,7 +33,7 @@ jobs:
           cache: npm
           cache-dependency-path: track/github.com/memoremix-ing/wasmfga.git/sts-0/sdk/typescript/package-lock.json
       - name: Build and test Go, Rust, SQLite, libSQL and Turso
-        run: make test-engines test-rust test-typescript
+        run: make test-engines test-native test-rust test-typescript
       - name: Install browser
         run: cd sdk/typescript && npm exec playwright install --with-deps chromium
       - name: Browser SQLite integration

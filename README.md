@@ -119,6 +119,12 @@ See [benchmark results](benchmarks/RESULTS.md),
 These measure the two implemented ports, including their different runtime,
 telemetry and validation machinery; they are not universal language benchmarks.
 
+Native Go and Rust applications can also link the evaluators directly and borrow
+host transactions without WASM. `make benchmark-native` compares both native
+snapshot ports with the original upstream Go checker using direct transaction
+queries, with and without compiled-model reuse. See [native integration](docs/native.md)
+and [native benchmark results](benchmarks/NATIVE_RESULTS.md).
+
 ## Transaction contract
 
 The binding only supports query and execute. The SDKs and guest never begin,

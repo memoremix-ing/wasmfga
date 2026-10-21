@@ -6,6 +6,7 @@ require (
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.3.2
 	github.com/openfga/openfga v1.22.0
+	github.com/openfga/openfga/wasmfga v0.0.0
 	github.com/tetratelabs/wazero v1.12.0
 	google.golang.org/protobuf v1.36.12
 	hegel.dev/go/hegel v0.9.27
@@ -84,3 +85,5 @@ require (
 )
 
 replace github.com/openfga/openfga => ../../../openfga/openfga.git/lts-1
+
+replace github.com/openfga/openfga/wasmfga => ./engine

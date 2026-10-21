@@ -34,8 +34,17 @@ func raw(v any) json.RawMessage {
 func tuple(object, relation, user string) json.RawMessage {
 	return raw(map[string]string{"object": object, "relation": relation, "user": user})
 }
-func openEngine(t testing.TB) *wasmfga.Engine {
+
+type testEngine interface {
+	Do(context.Context, wasmfga.Transaction, wasmfga.Request) (wasmfga.Response, error)
+	Close(context.Context) error
+}
+
+func openEngine(t testing.TB) testEngine {
 	t.Helper()
+	if name := os.Getenv("WASMFGA_NATIVE"); name != "" {
+		return openNativeEngine(t, name)
+	}
 	artifact := os.Getenv("WASMFGA_WASM")
 	if artifact == "" {
 		artifact = "../dist/wasmfga.wasm"
@@ -55,10 +64,10 @@ func openDB(t testing.TB) *sql.DB {
 	t.Cleanup(func() { must(t, db.Close()) })
 	return db
 }
-func do(e *wasmfga.Engine, tx *sql.Tx, r wasmfga.Request) (wasmfga.Response, error) {
+func do(e testEngine, tx *sql.Tx, r wasmfga.Request) (wasmfga.Response, error) {
 	return e.Do(context.Background(), wasmfga.SQLTransaction{Tx: tx}, r)
 }
-func setup(t testing.TB, e *wasmfga.Engine, db *sql.DB, model []byte) {
+func setup(t testing.TB, e testEngine, db *sql.DB, model []byte) {
 	t.Helper()
 	tx, err := db.Begin()
 	must(t, err)
@@ -71,7 +80,7 @@ func setup(t testing.TB, e *wasmfga.Engine, db *sql.DB, model []byte) {
 	must(t, err)
 	must(t, tx.Commit())
 }
-func check(e *wasmfga.Engine, tx *sql.Tx, query json.RawMessage) (bool, error) {
+func check(e testEngine, tx *sql.Tx, query json.RawMessage) (bool, error) {
 	res, err := do(e, tx, wasmfga.Request{Operation: "check", StoreID: storeID, ModelID: modelID, Check: query})
 	if err != nil {
 		return false, err

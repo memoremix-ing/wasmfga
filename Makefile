@@ -1,6 +1,25 @@
-.PHONY: build test test-go test-rust test-typescript test-browser typescript-deps fmt build-go build-rust test-engines benchmark benchmark-gate conformance
+.PHONY: build test test-go test-rust test-typescript test-browser typescript-deps fmt build-go build-rust test-engines benchmark benchmark-gate conformance build-native benchmark-native test-native
 
 build: build-go build-rust
+
+build-native:
+	mkdir -p dist/native
+	GOTOOLCHAIN=local go build -buildvcs=false -trimpath -ldflags="-s -w" -o dist/native/go-bench ./benchmarks/native/go
+	cargo build --manifest-path benchmarks/native/rust/Cargo.toml --locked --release
+	cp benchmarks/native/rust/target/release/wasmfga-native-bench dist/native/rust-bench
+	node benchmarks/native/fixtures.mjs
+
+test-native: build-native
+	cd engine && GOTOOLCHAIN=local go test ./...
+	cargo test --manifest-path engine-rust/Cargo.toml --features sqlite --locked
+	WASMFGA_NATIVE=go GOTOOLCHAIN=local go test ./tests -count=1
+	WASMFGA_NATIVE=upstream GOTOOLCHAIN=local go test ./tests -count=1
+	WASMFGA_NATIVE=rust GOTOOLCHAIN=local go test ./tests -count=1
+
+benchmark-native: test-native
+	node benchmarks/native/gate.mjs
+	node benchmarks/native/run.mjs
+	node benchmarks/native/report.mjs
 
 # Strict: includes known gaps and intentionally fails for the current Rust guest.
 conformance: build
