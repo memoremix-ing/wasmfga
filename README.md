@@ -83,6 +83,12 @@ It also has regression checks for malformed models, computed cycles, protobuf
 oneof serialization, cross-engine transactions, large integer strings and
 unsupported inline conditions in exclusions.
 
+The subsequent [conformance audit](docs/conformance-audit.md) found a **false allow**
+with duplicate conditional contextual userset edges in an exclusion, plus five
+CEL compatibility gaps. Six opt-in oracle regressions reproduce these differences;
+all pass with the Go guest and fail with the current Rust guest. The Rust evaluator
+must not be treated as authorization-equivalent to OpenFGA on arbitrary inputs.
+
 Its compatibility is narrower than the Go engine: CEL macros, collection
 expressions, generic and `any` parameters, and unrecognized model fields are
 rejected. Numeric strings must spell signed 64-bit integers; double strings are
