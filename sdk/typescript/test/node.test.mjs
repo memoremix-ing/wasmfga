@@ -11,7 +11,7 @@ import { WasmFGA, preparedTransaction, libsqlTransaction } from "../dist/index.j
 const base = { store_id: "01ARZ3NDEKTSV4RRFFQ69G5FAV", model_id: "01ARZ3NDEKTSV4RRFFQ69G5FAW" };
 const model = JSON.parse(await readFile("../../tests/fixtures/model.json"));
 const cases = JSON.parse(await readFile("../../tests/fixtures/cases.json"));
-const fga = await WasmFGA.create(await WebAssembly.compile(await readFile("../../dist/wasmfga.wasm")));
+const fga = await WasmFGA.create(await WebAssembly.compile(await readFile(process.env.WASMFGA_WASM ?? "../../dist/wasmfga.wasm")));
 
 for (const backend of ["sqlite", "libsql", "turso"]) {
   test(`${backend}: OpenFGA conformance and caller-owned atomicity`, async () => {

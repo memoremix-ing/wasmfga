@@ -4,7 +4,7 @@ async function run() {
   const [model, cases, wasm, sqlite] = await Promise.all([
     fetch("/tests/fixtures/model.json").then(r => r.json()),
     fetch("/tests/fixtures/cases.json").then(r => r.json()),
-    fetch("/dist/wasmfga.wasm").then(r => r.arrayBuffer()),
+    fetch(new URLSearchParams(location.search).get("engine") === "rust" ? "/dist/wasmfga-rust.wasm" : "/dist/wasmfga.wasm").then(r => r.arrayBuffer()),
     globalThis.initSqlJs({ locateFile: file => `/sdk/typescript/node_modules/sql.js/dist/${file}` }),
   ]);
   const fga = await WasmFGA.create(wasm);

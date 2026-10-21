@@ -36,7 +36,11 @@ func tuple(object, relation, user string) json.RawMessage {
 }
 func openEngine(t testing.TB) *wasmfga.Engine {
 	t.Helper()
-	b, err := os.ReadFile("../dist/wasmfga.wasm")
+	artifact := os.Getenv("WASMFGA_WASM")
+	if artifact == "" {
+		artifact = "../dist/wasmfga.wasm"
+	}
+	b, err := os.ReadFile(artifact)
 	must(t, err)
 	e, err := wasmfga.New(context.Background(), b)
 	must(t, err)
@@ -97,12 +101,16 @@ func (o *oracle) check(tuples []json.RawMessage, query json.RawMessage) (bool, e
 	if err = ds.WriteAuthorizationModel(ctx, storeID, model); err != nil {
 		return false, err
 	}
+	keys := make([]*openfgav1.TupleKey, 0, len(tuples))
 	for _, b := range tuples {
 		tk := new(openfgav1.TupleKey)
 		if err = protojson.Unmarshal(b, tk); err != nil {
 			return false, err
 		}
-		if err = ds.Write(ctx, storeID, nil, []*openfgav1.TupleKey{tk}); err != nil {
+		keys = append(keys, tk)
+	}
+	if len(keys) > 0 {
+		if err = ds.Write(ctx, storeID, nil, keys); err != nil {
 			return false, err
 		}
 	}

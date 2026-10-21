@@ -9,10 +9,9 @@ fn request(op: &str) -> Value {
 
 #[test]
 fn conformance_and_borrowed_transaction() -> Result<()> {
-    let wasm = std::fs::read(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../dist/wasmfga.wasm"
-    ))?;
+    let artifact = std::env::var("WASMFGA_WASM")
+        .unwrap_or_else(|_| concat!(env!("CARGO_MANIFEST_DIR"), "/../../dist/wasmfga.wasm").into());
+    let wasm = std::fs::read(artifact)?;
     let mut engine = Engine::new(&wasm)?;
     let model: Value = serde_json::from_str(include_str!("../../../tests/fixtures/model.json"))?;
     let cases: Vec<Value> =

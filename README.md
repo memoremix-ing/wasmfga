@@ -5,9 +5,10 @@ applications supply an **already-open database transaction**. The guest plans SQ
 the host executes it through that binding. Permission changes, checks, and the
 application's own writes can therefore commit or roll back together.
 
-The evaluator uses the source in the sibling OpenFGA `lts-1` workspace, including
+The Go evaluator uses the source in the sibling OpenFGA `lts-1` workspace, including
 its graph resolution, model validation, tuple validation, and CEL implementation.
-There is no separate implementation of authorization semantics.
+The Rust evaluator in `engine-rust/` independently implements the Check graph and a
+conservative scalar CEL subset. It is experimental; see the scope below.
 
 Supported now:
 
@@ -21,9 +22,9 @@ Supported now:
 This is an initial embedding implementation. Each Check loads the selected model
 and a **complete store tuple snapshot**, limited to 10,000 tuples and 16 MiB of
 serialized request input. Exceeding either limit returns an error. No partial
-snapshot is evaluated. Graph resolution depth is 25. The WASM binary is currently
-about 46 MiB before compression; browser initialization and Rust JIT compilation
-are substantial. This implementation has no HTTP/gRPC service, ListObjects,
+snapshot is evaluated. Graph resolution depth is 25. The Go WASM artifact is currently
+about 45 MiB before compression; the benchmark report compares its size and
+startup with the Rust artifact. This implementation has no HTTP/gRPC service, ListObjects,
 ListUsers, Expand, store management, or change-log API. It uses its own two-table
 schema rather than OpenFGA's server database schema.
 
@@ -40,15 +41,18 @@ From `wasmfga.git/sts-0`, with Go 1.26.1+ (tested on 1.27.1), Python 3.9+,
 Rust 1.92, and Node 24:
 
 ```sh
-make build                 # dist/wasmfga.wasm; no TinyGo, wasm-bindgen, or wasm-opt needed
-make test-go               # native protocol tests + WASM/OpenFGA oracle + Hegel
-make test-rust             # actual WASM + rusqlite caller-owned transaction
-make test-typescript       # SQLite + libSQL + native Turso caller-owned transactions
+rustup target add wasm32-wasip1
+make build                 # Go: dist/wasmfga.wasm; Rust: dist/wasmfga-rust.wasm
+make test-go               # Go protocol tests + Go WASM/OpenFGA oracle + Hegel
+make test-engines          # oracle/Hegel suites for both WASM implementations
+make test-rust             # both guests in Wasmtime + rusqlite transactions
+make test-typescript       # both guests on SQLite + libSQL + native Turso
 cd sdk/typescript
 npm exec playwright install chromium
 cd ../..
-make test-browser          # actual WASM + SQLite WASM in Chromium
+make test-browser          # both guests + SQLite WASM in Chromium
 make test                  # all of the above
+make benchmark             # oracle-gated, fresh-process Go/Rust benchmarks
 ```
 
 `upstream.json` records the source revision tested here. The relative Go module
@@ -62,6 +66,47 @@ and validation packages; the host SDK is `github.com/memoremix-ing/wasmfga/sdk/g
 `dist/` and adjusts its cache-line padding for WASM, where `cpu.CacheLinePad` has
 size zero. This is the only dependency portability patch. It never edits the
 OpenFGA workspace or the Go module cache. Its original Apache license is retained.
+
+## Independent Rust evaluator and benchmarks
+
+`engine-rust/` builds a Rust `cdylib` for `wasm32-wasip1`, using optimized release,
+thin LTO and stripped symbols. The Go engine uses `GOOS=wasip1 GOARCH=wasm`,
+`-buildmode=c-shared`, normal compiler optimization and stripped symbols.
+Both expose the same `alloc`/`run` ABI and emit the same SQL effects. Every SDK
+can load either artifact without a different transaction binding. Models and
+tuples written by one engine are readable by the other, including before commit.
+
+The Rust evaluator supports schema 1.1 graph rewrites, usersets, inheritance,
+cycles, contextual tuples, and named/inline conditions with scalar CEL expressions.
+It passes the same 516 upstream Check/ABAC assertions and 100 Hegel histories.
+It also has regression checks for malformed models, computed cycles, protobuf
+oneof serialization, cross-engine transactions, large integer strings and
+unsupported inline conditions in exclusions.
+
+Its compatibility is narrower than the Go engine: CEL macros, collection
+expressions, generic and `any` parameters, and unrecognized model fields are
+rejected. Numeric strings must spell signed 64-bit integers; double strings are
+further restricted to exactly representable integers within ±2^53. Decimal or
+scientific numeric strings remain unsupported (JSON numeric values are supported).
+The scalar type checker and structural model validator are independent ports,
+not the upstream Go validators. Passing these tests does not establish full
+OpenFGA/CEL equivalence or production readiness. Keep the Go implementation as
+the compatibility baseline while extending and testing Rust.
+
+Run `make benchmark` to validate **both exact artifacts** against native OpenFGA
+before collecting timings. It measures cold V8 compilation/initialization,
+hydrated guest calls, and complete checks inside an existing local SQLite
+transaction. Ten workloads cover direct grants/denies, recursion, intersection,
+exclusion, conditions, and 100/1,000/10,000-tuple snapshots. Five fresh processes
+per implementation and mode alternate execution order. Every measured decision
+is checked. Raw results include artifact hashes, toolchain/hardware details,
+warmups, input sizes, per-process medians/p95 and linear-memory high-water marks.
+
+See [benchmark results](benchmarks/RESULTS.md),
+[raw samples](benchmarks/results/latest.json), and
+[interactive comparison](benchmarks/results/comparison.html).
+These measure the two implemented ports, including their different runtime,
+telemetry and validation machinery; they are not universal language benchmarks.
 
 ## Transaction contract
 

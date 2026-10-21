@@ -1,0 +1,12 @@
+[
+  {"name":"direct-grant","case":"owner"},
+  {"name":"empty-deny","case":"deny_empty"},
+  {"name":"userset-chain-12","kind":"userset_chain","depth":12},
+  {"name":"parent-chain-12","kind":"parent_chain","depth":12},
+  {"name":"intersection","case":"intersection_yes"},
+  {"name":"exclusion","case":"exclusion"},
+  {"name":"cel-int","case":"cel_true"},
+  {"name":"snapshot-100","case":"owner","snapshot_size":100},
+  {"name":"snapshot-1000","case":"owner","snapshot_size":1000},
+  {"name":"snapshot-10000","case":"owner","snapshot_size":10000}
+]

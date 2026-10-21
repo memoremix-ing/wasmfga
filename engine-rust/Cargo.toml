@@ -1,0 +1,23 @@
+[package]
+name = "wasmfga-engine"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.92"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+cel = { version = "=0.15.0", default-features = false, features = ["chrono", "regex", "json"] }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+ipnet = "2.12"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"

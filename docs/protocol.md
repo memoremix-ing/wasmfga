@@ -1,6 +1,8 @@
 # WASM and transaction protocol (v0)
 
-Build target: Go `wasip1/wasm`, `-buildmode=c-shared`, WASI preview 1 reactor.
+Build targets: Go `wasip1/wasm` with `-buildmode=c-shared`, or Rust
+`wasm32-wasip1` with `crate-type = ["cdylib"]`. Both use the same WASI preview 1
+reactor ABI.
 Initialize `_initialize` once, providing `argv[0] = "wasmfga"`, random and clock
 services, and standard streams. No filesystem preopens or network imports are
 needed. All text is UTF-8. The WASI runtime and SQL binding are trusted host code.
